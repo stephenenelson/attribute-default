@@ -1,0 +1,6 @@
+Revision history for Perl extension Attribute::Default.
+
+0.01  Tue Apr 23 21:15:30 2002
+	- original version; created by h2xs 1.21 with options
+		-AX -n Attribute::Default
+

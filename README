@@ -1,0 +1,44 @@
+Attribute/Default version 0.01
+==============================
+
+You've probably seen it a thousand times: a subroutine begins with a
+complex series of C<defined($blah) or $blah = 'fribble'> statements
+designed to provide reasonable default values for optional
+parameters. They work fine, but every once in a while one wishes that
+perl 5 had a simple mechanism to provide default values to
+subroutines.
+
+This module attempts to fill that gap. It allows you to declare your
+subroutines with a 'default' attribute which you can use to specify
+whatever default values your subroutine should have, and automatically
+fills them in if they are undefined or not provided. It works on
+simple scalar arguments, list arguments, and hash-style named
+arguments.
+
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make test
+   make install
+
+Unfortunately, the usual Makefile.PL mechanism for having CPAN install
+prerequisite modules doesn't work on Attribute::Handlers, so you'll
+have to install it yourself.
+
+DEPENDENCIES
+
+This module requires these other modules and libraries:
+
+   Attribute::Handlers
+
+COPYRIGHT AND LICENCE
+
+Released under the Perl Artistic License. All files in this
+distribution may be distributed and modified under the same terms as
+Perl itself.
+
+"Schoolhouse Rock" is the property of ABC Home Video. All rights reserved.
+
