@@ -7,7 +7,7 @@ use lib '..';
 #########################
 
 use Test;
-BEGIN { plan tests => 15 };
+BEGIN { plan tests => 16 };
 use Attribute::Default;
 ok(1); # If we made it this far, we're ok.
 
@@ -39,11 +39,24 @@ ok(1); # If we made it this far, we're ok.
     return "Val 1 is $args{val1}, val 2 is $args{val2}";
   }
 
-  sub method_hash :method : Default({ falstaff => 'Plump Jack' }) {
+  sub banish :method : Default({ falstaff => 'Plump Jack' }) {
     my $self = shift;
     my %args = @_;
-    return "Banish $args{falstaff}, and banish $self.";
+    return "Banish $args{falstaff}, and banish all the world.";
   }
+
+  sub new : method {
+    my $type = shift;
+    my $self = {};
+    bless $self, $type;
+  }
+
+  sub imitate :method :Defaults({ character => 'Prince Hal', quote => 'And yet herein will I imitate the sun'}) {
+    my $self = shift;
+    my ($in) = @_;
+
+    return "$in->{character}: $in->{quote}";
+  } 
 
   sub single_defs : Defaults({ type => 'black', name => 'darjeeling', varietal => 'makaibari' }) {
     my ($args) = @_;
@@ -68,7 +81,9 @@ ok(double('another', 'value'), "Two values: another,value");
 ok(double('one is different'), "Two values: one is different,values");
 ok(hash_vals(), "Val 1 is val one, val 2 is val two");
 ok(hash_vals(val2 => 'totally'), "Val 1 is val one, val 2 is totally");
-ok(method_hash('all the world'), "Banish Plump Jack, and banish all the world.");
+my $test = Attribute::Default::Test->new();
+ok($test->banish(), "Banish Plump Jack, and banish all the world.");
+ok($test->imitate(), "Prince Hal: And yet herein will I imitate the sun");
 
 ok(single_defs(), "Type: black, Name: darjeeling, Varietal: makaibari");
 ok(single_defs({ varietal => 'Risheehat First Flush'}), "Type: black, Name: darjeeling, Varietal: Risheehat First Flush");

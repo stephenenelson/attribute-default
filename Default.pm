@@ -23,9 +23,8 @@ our $VERSION = do { my @r = (q$Revision$ =~ /\d+/g); sprintf "%d."."%02d" x $#r,
 
 
 sub _get_args {
-  my ($glob, $attr, $defaults) = @_[1,3,4];
+  my ($glob, $orig, $attr, $defaults) = @_[1,2,3,4];
   (ref $defaults && ref $defaults ne 'CODE') or $defaults = [$defaults];
-  my $orig = *$glob{CODE};
 
   return ($glob, $attr, $defaults, $orig);
 }
@@ -38,10 +37,20 @@ sub _sub {
   return $subs->{ref $defaults};
 }
 
+sub _is_method {
+  my ($orig) = @_;
+
+  foreach ( attributes::get($orig) ) {
+    ($_ eq 'method') and return 1;
+  }
+
+  return;
+}
+
 sub Default : ATTR(CODE) {
   my ($glob, $attr, $defaults, $orig) = _get_args(@_);
   
-  if ( grep({ $_ eq 'method'} attributes::get($orig)) ) {
+  if ( _is_method($orig) ) {
     *$glob = _sub($attr, {
 			  ARRAY => sub {
 			    @_ = ( $_[0], _fill_arr($defaults, @_[ $[ + 1 .. $#_ ]) );
@@ -132,14 +141,13 @@ sub _fill_arr {
 }  
 
 sub Defaults : ATTR(CODE) {
-  my ($glob, $attr, $defaults_list) = @_[1,3,4];
+  my ($glob, $orig, $attr, $defaults_list) = @_[1 .. 4];
 
   ref $defaults_list eq 'ARRAY' or $defaults_list = [$defaults_list];
   
-  my $orig = *$glob{CODE};
-  *$glob = sub {
+  my $process_defaults = sub {
     my @args = @_;
-    ARG: foreach ($[ .. $#args ) {
+  ARG: foreach ($[ .. $#args ) {
       if (! defined $args[$_]) {
 	$args[$_] = $defaults_list->[$_];
       }
@@ -159,13 +167,25 @@ sub Defaults : ATTR(CODE) {
     if ($#$defaults_list > $#_) {
       push(@args, @$defaults_list[scalar @_ .. $#$defaults_list]);
     }
-    @_ = @args;
-    goto $orig;
+    return @args;
   };
 
+  if ( _is_method($orig) ) {
+    *$glob = sub {
+      @_ = ($_[0], $process_defaults->(@_[ ($[ + 1 ) .. $#_ ]));
+      goto $orig;
+    };
+  }
+  else {
+    *$glob = sub {
+      @_ = $process_defaults->(@_);
+      goto $orig;
+    };
+  }
 
-      
+     
 }
+
 
 1;
 __END__
