@@ -31,7 +31,7 @@ use constant EXSUB_CLASS => ( __PACKAGE__ . '::ExSub' );
 ## Apparently I found it necessary to export 'exsub'
 ## by hand. I don't know why. Eventually, it may
 ## be necessary to turn on some specific functionality
-## once 'exsub' is exported.
+## once 'exsub' is exported for compile-time speed.
 ##
 sub import {
   my $class = shift;
@@ -92,25 +92,31 @@ sub _is_method {
 }
 
 ##
-## _find_exsubs_in_array()
+## _extract_exsubs_array()
 ##
 ## Arguments:
 ##    DEFAULTS -- arrayref : The list of default arguments
 ##
 ## Returns:
-##    Hashtable: list of exsubs we found and their array indices
+##    hashref: list of exsubs we found and their array indices
+##    arrayref: list of defaults without exsubs
 ##
-sub _find_exsubs_in_array {
+sub _extract_exsubs_array {
   my ($defaults) = @_;
   
   my %exsubs = ();
+  my @noexsubs = ();
 
   for ( $[ .. $#$defaults ) {
-    (UNIVERSAL::isa( $defaults->[$_], EXSUB_CLASS )) or next;
-    $exsubs{$_} = $defaults->[$_];
+    if (UNIVERSAL::isa( $defaults->[$_], EXSUB_CLASS )) {
+      $exsubs{$_} = $defaults->[$_];
+    }
+    else {
+      $noexsubs[$_] = $defaults->[$_];
+    }
   }
 
-  return %exsubs;
+  return (\%exsubs, \@noexsubs);
 }
 
 ##
@@ -177,14 +183,15 @@ sub _get_fill {
 sub _fill_array_sub {
   my ($defaults, $argument_func) = @_;
 
-  if ( my %exsubs = _find_exsubs_in_array($defaults) ) {
+  my ($exsubs, $noexsubs) = _extract_exsubs_array($defaults);
+  if ( %$exsubs ) {
     return sub {
       my ($pre, $args) = $argument_func->(@_);
-      my @filled = _fill_arr($defaults, @$args);
+      my @filled = _fill_arr($noexsubs, @$args);
       my @processed = @filled;
       foreach (0 .. ( @$pre + @$args) ) {
-	 (! defined($args->[$_]) ) && defined $exsubs{$_} or next;
-	$processed[$_] = $exsubs{$_}->(@$pre, @filled);
+	 (! defined($args->[$_]) ) && defined $exsubs->{$_} or next;
+	$processed[$_] = $exsubs->{$_}->(@$pre, @filled);
       }
       return ( @$pre, @processed);
     };
@@ -245,7 +252,13 @@ sub _fill_hash_sub {
 ##
 ## _get_sub()
 ##
-## Returns the appropriate subroutine wrapper for $orig.
+## Arguments:
+##    DEFAULTS: arrayref -- Array of defaults to a subroutine
+##    ORIG: code ref -- The subroutine we're applying defaults to
+## 
+## Returns the appropriate subroutine wrapper that
+## will call ORIG with the given default values.
+##
 sub _get_sub {
   my ($defaults, $orig) = @_;
 
@@ -376,7 +389,40 @@ sub _make_exsub_filter {
     return @$args;
   };
 }
-     
+
+###
+### Code comprehension notes: exsubs
+###
+### It seems I've scrambled my exsub handling. Defaults()
+### handles exsubs by sorting them out at compile time
+### and storing them elsewhere, then undeffing them in the original
+### list of defaults. Default() used to do this
+### as well, but I (in my foolishness) forgot what I was doing and
+### broke that behavior.
+###
+### I intend to fix this problem.
+###
+### It seems the overall process is (or should be) as follows:
+###
+### Compile time:
+### 1. Separate exsubs from rest of defaults
+### 2. Choose appropriate subroutine to filter defaults 
+###    (aka is-it-a-method? Do I need exsub expansion?)
+### 3. Substitute wrapper subroutine for original subroutine
+###
+### Runtime:
+### 1. Interpolate defaults.
+### 2. Run exsubs and interpolate results.
+###
+### I may get some additional clarity by treating exsubs completely separately.
+### Right now they're part of the main filter method... but why not have
+### multiple filter methods?
+###
+### Finally, and unrelated, I've figured out how handle :method subs. Easy. Bloody easy.
+### At compile time, if I've got a :method marker, add an 'undef' to the beginning of the
+### default list. Hmm... no, won't work for hashes... 
+###
+
 
 sub Defaults : ATTR(CODE) {
   my ($glob, $orig, $attr, $defaults_list) = @_[1 .. 4];
