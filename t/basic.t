@@ -1,5 +1,6 @@
 # Before `make install' is performed this script should be runnable with
 # `make test'. After `make install' it should work as `perl test.pl'
+# $Revision$
 
 use diagnostics;
 use lib '..';
@@ -7,7 +8,7 @@ use lib '..';
 #########################
 
 use Test;
-BEGIN { plan tests => 17 };
+BEGIN { plan tests => 21, todo => [20,21] };
 use Attribute::Default;
 ok(1); # If we made it this far, we're ok.
 
@@ -92,6 +93,7 @@ ok(double_defs({item => 'hamlet'}, 'dane', [undef, 5]), 'hamlet dane 3 5');
   package Attribute::Default::TestExpand;
   use Attribute::Default 'exsub';
   use base qw(Attribute::Default);
+  use UNIVERSAL;
 
   sub single_sub : Default(exsub { return "3" } ) {
     return "Should be three: $_[0]";
@@ -100,10 +102,45 @@ ok(double_defs({item => 'hamlet'}, 'dane', [undef, 5]), 'hamlet dane 3 5');
   sub multi_subs : Defaults( [ 'caius', 'martius', 'coriolanus' ], exsub { [ reverse @{ $_[0] } ] } ) {
     return "@{$_[0]} is backward @{$_[1]}";
   }
+
+  sub threefaces_sub  : Defaults(3, exsub { $_[0] + 1 }, { foo => exsub { $_[0] + 2 } } ) {
+    return "$_[0] $_[1] $_[2]{'foo'}";
+  }
+
+  sub new { my $self = [3]; bless $self; }
+
+  sub exp_meth :method :Default({foo => exsub { _check_and_mult($_[0], 2); } }) {
+    my $self = shift;
+    my %args = @_;
+    return $args{'foo'};
+  }
+
+  sub exp_meths :method :Defaults({bar => exsub { _check_and_mult($_[0], 3); }}) {
+    my $self = shift;
+    return $_[0]{bar};
+  }
+
+  sub _check_and_mult {
+    my $self = shift;
+    my ($factor) = @_;
+    
+    unless (UNIVERSAL::isa($self, __PACKAGE__)) {
+      warn "Wrong kind of type: got $self";
+      return;
+    }
+    return @$self * $factor;
+  }
 }
   
 ok(Attribute::Default::TestExpand::single_sub(), 'Should be three: 3');
 ok(Attribute::Default::TestExpand::multi_subs(), 'caius martius coriolanus is backward coriolanus martius caius');
+ok(Attribute::Default::TestExpand::threefaces_sub(), "3 4 5");
+ok(Attribute::Default::TestExpand::threefaces_sub(2), "2 3 4");
+{
+  my $testobj = Attribute::Default::TestExpand->new();
+  ok($testobj->exp_meth(), 6);
+  ok($testobj->exp_meths(), 9);
+}
 
 
 
