@@ -115,22 +115,54 @@ sub _find_exsubs_in_array {
 }
 
 ##
+## _get_arg_func()
+##
+## Arguments:
+##    ORIG: glob reference -- Reference to the function for which we're building a wrapper
+##
+## Returns:
+##    CODEREF -- Reference to a function that, when applied to the subroutine's arguments,
+##               returns the $self reference (if a method) as a listref, and the
+##               rest of the arguments as a listref.
+##
+## 
+sub _get_arg_func {
+  my ($orig) = @_;
+
+  if ( _is_method($orig) ) {
+    return sub {
+      if (@_ >= 1) {
+	my $self = shift;
+	return ([$self], [@_]);
+      }
+      else {
+	return ([], []);
+      }
+    };
+  }
+  else {
+    return sub { return ([], [@_]); };
+  }
+}
+
+
+
+##
 ## _get_fill()
 ##
 ## Returns an appropriate subroutine to process the given defaults.
 ##
 sub _get_fill {
-  my ($defaults, $offset) = @_;
-  defined $offset or $offset = 0;
+  my ($defaults, $orig) = @_;
 
   if (ref $defaults eq 'ARRAY') {
-    return _fill_array_sub($defaults, $offset);
+    return _fill_array_sub($defaults, _get_arg_func($orig));
   }
   elsif(ref $defaults eq 'HASH') {
-    return _fill_hash_sub($defaults);
+    return _fill_hash_sub($defaults, _get_arg_func($orig));
   }
   else {
-    return _fill_array_sub([$defaults], $offset);
+    return _fill_array_sub([$defaults], _get_arg_func($orig));
   }
 }
 
@@ -144,22 +176,25 @@ sub _get_fill {
 ## with defaults.
 ##
 sub _fill_array_sub {
-  my ($defaults, $offset) = @_;
-  defined $offset or $offset = 0;
+  my ($defaults, $argument_func) = @_;
 
   if ( my %exsubs = _find_exsubs_in_array($defaults) ) {
     return sub {
-      my @filled = _fill_arr($defaults, @_[ $offset .. $#_ ]);
+      my ($pre, $args) = $argument_func->(@_);
+      my @filled = _fill_arr($defaults, @$args);
       my @processed = @filled;
-      foreach ($offset .. $#processed) {
+      foreach (0 .. ( @$pre + @$args) ) {
 	(! defined($processed[$_]) && defined $exsubs{$_}) or next;
-	$processed[$_] = $exsubs{$_}->(@_[ 0 .. $offset], @filled);
+	$processed[$_] = $exsubs{$_}->(@$pre, @filled);
       }
-      return @processed;
+      return ( @$pre, @processed);
     };
   }
   else {
-    return sub { _fill_arr($defaults, @_) };
+    return sub {
+      my ($pre, $args) = $argument_func->(@_);
+      return (@$pre, _fill_arr($defaults, @$args));
+    };
   }
 }
 
@@ -187,22 +222,25 @@ sub _find_exsubs_in_hash {
 ## with defaults.
 ##
 sub _fill_hash_sub {
-  my ($defaults, $offset) = @_;
-  defined $offset or $offset = 0;
+  my ($defaults, $argument_func) = @_;
 
   if ( my %exsubs = _find_exsubs_in_hash($defaults) ) {
     return sub {
-      my @filled = _fill_hash($defaults, @_[ $offset .. $#_ ]);
+      my ($pre, $args) = $argument_func->(@_);
+      my @filled = _fill_hash($defaults, @$args);
       my %processed = @filled;
       while (my ($key, $value) = each %processed) {
 	(! defined($processed{$key})) && defined $exsubs{$key} or next;
-	$processed{$key} = $exsubs{$key}->(@_[ 0 .. $offset ], @filled);
+	$processed{$key} = $exsubs{$key}->(@$pre, @filled);
       }
       return %processed;
     };
   }
   else {
-    return sub { _fill_hash($defaults, @_) };
+    return sub { 
+      my ($pre, $args) = $argument_func->(@_);
+      return (@$pre, _fill_hash($defaults, @$args));
+    };
   }
 }
 
@@ -213,23 +251,15 @@ sub _fill_hash_sub {
 sub _get_sub {
   my ($defaults, $orig) = @_;
 
-  my $fill = _get_fill($defaults);
+  my $fill = _get_fill($defaults, $orig);
 
-  if ( _is_method($orig) ) {
-    return sub {
-      @_ = ( $_[0], $fill->(@_[ $[ + 1 .. $#_ ]) );
-      goto $orig;
-    };
-  }
-  else {
     return sub {
       @_ = $fill->(@_);
       goto $orig;
     };
-  }
 
 }
-    
+
 
 sub Default : ATTR(CODE) {
   my ($glob, $attr, $defaults, $orig) = _get_args(@_);
