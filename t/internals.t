@@ -31,3 +31,6 @@ sub foomethod :method { }
   is_deeply( [ $fillsub->( $self ) ], [$self, 1, 2], "Offset" );
 }
 
+  
+
+
