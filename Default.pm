@@ -108,7 +108,6 @@ sub _find_exsubs_in_array {
   for ( $[ .. $#$defaults ) {
     (UNIVERSAL::isa( $defaults->[$_], EXSUB_CLASS )) or next;
     $exsubs{$_} = $defaults->[$_];
-    $defaults->[$_] = undef;
   }
 
   return %exsubs;
@@ -184,7 +183,7 @@ sub _fill_array_sub {
       my @filled = _fill_arr($defaults, @$args);
       my @processed = @filled;
       foreach (0 .. ( @$pre + @$args) ) {
-	(! defined($processed[$_]) && defined $exsubs{$_}) or next;
+	 (! defined($args->[$_]) ) && defined $exsubs{$_} or next;
 	$processed[$_] = $exsubs{$_}->(@$pre, @filled);
       }
       return ( @$pre, @processed);
@@ -210,7 +209,6 @@ sub _find_exsubs_in_hash {
   while ( my ($key, $value) = each %$defaults ) {
     (UNIVERSAL::isa( $value, EXSUB_CLASS ) ) or next;
     $exsubs{$key} = $value;
-    $defaults->{$key} = undef;
   }
   return %exsubs;
 }
@@ -230,7 +228,7 @@ sub _fill_hash_sub {
       my @filled = _fill_hash($defaults, @$args);
       my %processed = @filled;
       while (my ($key, $value) = each %processed) {
-	(! defined($processed{$key})) && defined $exsubs{$key} or next;
+	(! defined $processed{$key}) && defined $exsubs{$key} or next;
 	$processed{$key} = $exsubs{$key}->(@$pre, @filled);
       }
       return %processed;
@@ -283,7 +281,14 @@ sub _fill_hash {
   my $defaults = shift;
   my %args = @_;
   while (my ($key, $value) = each %$defaults) {
-    defined($args{$key}) or $args{$key} = $value;
+    unless ( defined($args{$key}) ) {
+      if ( UNIVERSAL::isa( $value, EXSUB_CLASS ) ) {
+	$args{$key} = undef;
+      }
+      else {
+	$args{$key} = $value;
+      }
+    }
   }
   return %args;
 }
@@ -298,6 +303,11 @@ sub _fill_hash {
 ## Returns:
 ##    list -- Arguments with defaults filled in
 ##
+## Implementation note: We go through the list
+## a second time to pull out exsubs. This should somehow
+## be optimized out, and possibly not happen unless
+## exsub has been imported.
+##
 sub _fill_arr {
   my $defaults = shift;
   my @filled = ();
@@ -306,6 +316,9 @@ sub _fill_arr {
   }
   if ($#$defaults > $#_) {
     push(@filled, @$defaults[scalar @_ .. $#$defaults]);
+  }
+  foreach ( @filled ) {
+    UNIVERSAL::isa($_, EXSUB_CLASS) and $_ = undef;
   }
   
   return @filled;
