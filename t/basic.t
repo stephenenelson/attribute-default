@@ -7,8 +7,7 @@ use lib '..';
 
 #########################
 
-use Test;
-BEGIN { plan tests => 21, todo => [20,21] };
+use Test::More tests => 21;
 use Attribute::Default;
 ok(1); # If we made it this far, we're ok.
 
@@ -71,23 +70,23 @@ ok(1); # If we made it this far, we're ok.
 
 Attribute::Default::Test->import();
 
-ok(single(), "Here I am: single value");
-ok(single('other value'), "Here I am: other value");
-ok(double(), "Two values: two,values");
-ok(double('another', 'value'), "Two values: another,value");
-ok(double('one is different'), "Two values: one is different,values");
-ok(hash_vals(), "Val 1 is val one, val 2 is val two");
-ok(hash_vals(val2 => 'totally'), "Val 1 is val one, val 2 is totally");
+is(single(), "Here I am: single value");
+is(single('other value'), "Here I am: other value");
+is(double(), "Two values: two,values");
+is(double('another', 'value'), "Two values: another,value");
+is(double('one is different'), "Two values: one is different,values");
+is(hash_vals(), "Val 1 is val one, val 2 is val two");
+is(hash_vals(val2 => 'totally'), "Val 1 is val one, val 2 is totally");
 my $test = Attribute::Default::Test->new();
-ok($test->banish(), "Banish Plump Jack, and banish all the world.");
-ok($test->imitate(), "Prince Hal: And yet herein will I imitate the sun");
+is($test->banish(), "Banish Plump Jack, and banish all the world.");
+is($test->imitate(), "Prince Hal: And yet herein will I imitate the sun");
 
-ok(single_defs(), "Type: black, Name: darjeeling, Varietal: makaibari");
-ok(single_defs({ varietal => 'Risheehat First Flush'}), "Type: black, Name: darjeeling, Varietal: Risheehat First Flush");
-ok(single_defs("Wrong type of argument"), 'Type: , Name: , Varietal: ');
+is(single_defs(), "Type: black, Name: darjeeling, Varietal: makaibari");
+is(single_defs({ varietal => 'Risheehat First Flush'}), "Type: black, Name: darjeeling, Varietal: Risheehat First Flush");
+is(single_defs("Wrong type of argument"), 'Type: , Name: , Varietal: ');
 
-ok(double_defs(), 'polonious fishmonger 3');
-ok(double_defs({item => 'hamlet'}, 'dane', [undef, 5]), 'hamlet dane 3 5');
+is(double_defs(), 'polonious fishmonger 3');
+is(double_defs({item => 'hamlet'}, 'dane', [undef, 5]), 'hamlet dane 3 5');
 
 {
   package Attribute::Default::TestExpand;
@@ -124,22 +123,32 @@ ok(double_defs({item => 'hamlet'}, 'dane', [undef, 5]), 'hamlet dane 3 5');
     my $self = shift;
     my ($factor) = @_;
     
+    unless (@_ == 2) {
+      Test::More::diag("Expanded sub got wrong number of arguments: @{[ scalar @_ ]}");
+      return;
+    }
     unless (UNIVERSAL::isa($self, __PACKAGE__)) {
-      warn "Wrong kind of type: got $self";
+      Test::More::diag("Expanded sub got wrong kind of type for \$self: $self");
       return;
     }
     return @$self * $factor;
   }
 }
   
-ok(Attribute::Default::TestExpand::single_sub(), 'Should be three: 3');
-ok(Attribute::Default::TestExpand::multi_subs(), 'caius martius coriolanus is backward coriolanus martius caius');
-ok(Attribute::Default::TestExpand::threefaces_sub(), "3 4 5");
-ok(Attribute::Default::TestExpand::threefaces_sub(2), "2 3 4");
+is(Attribute::Default::TestExpand::single_sub(), 'Should be three: 3');
+is(Attribute::Default::TestExpand::multi_subs(), 'caius martius coriolanus is backward coriolanus martius caius');
+is(Attribute::Default::TestExpand::threefaces_sub(), "3 4 5");
+is(Attribute::Default::TestExpand::threefaces_sub(2), "2 3 4");
 {
   my $testobj = Attribute::Default::TestExpand->new();
-  ok($testobj->exp_meth(), 6);
-  ok($testobj->exp_meths(), 9);
+ TODO: { 
+    local $TODO = 'Passing $self to exsubs not implemented';
+    is($testobj->exp_meth(), 6);
+  }
+ TODO: {
+    local $TODO = 'Expanding subs in Defaults() not implemented';
+    is($testobj->exp_meths(), 9);
+  }
 }
 
 
