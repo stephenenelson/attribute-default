@@ -120,16 +120,17 @@ sub _find_exsubs_in_array {
 ## Returns an appropriate subroutine to process the given defaults.
 ##
 sub _get_fill {
-  my ($defaults) = @_;
+  my ($defaults, $offset) = @_;
+  defined $offset or $offset = 0;
 
   if (ref $defaults eq 'ARRAY') {
-    return _fill_array_sub($defaults);
+    return _fill_array_sub($defaults, $offset);
   }
   elsif(ref $defaults eq 'HASH') {
     return _fill_hash_sub($defaults);
   }
   else {
-    return _fill_array_sub([$defaults]);
+    return _fill_array_sub([$defaults], $offset);
   }
 }
 
@@ -143,15 +144,16 @@ sub _get_fill {
 ## with defaults.
 ##
 sub _fill_array_sub {
-  my ($defaults) = @_;
+  my ($defaults, $offset) = @_;
+  defined $offset or $offset = 0;
 
   if ( my %exsubs = _find_exsubs_in_array($defaults) ) {
     return sub {
-      my @filled = _fill_arr($defaults, @_);
+      my @filled = _fill_arr($defaults, @_[ $offset .. $#_ ]);
       my @processed = @filled;
-      foreach ($[ .. $#processed) {
+      foreach ($offset .. $#processed) {
 	(! defined($processed[$_]) && defined $exsubs{$_}) or next;
-	$processed[$_] = $exsubs{$_}->(@filled);
+	$processed[$_] = $exsubs{$_}->(@_[ 0 .. $offset], @filled);
       }
       return @processed;
     };
@@ -185,15 +187,16 @@ sub _find_exsubs_in_hash {
 ## with defaults.
 ##
 sub _fill_hash_sub {
-  my ($defaults) = @_;
+  my ($defaults, $offset) = @_;
+  defined $offset or $offset = 0;
 
   if ( my %exsubs = _find_exsubs_in_hash($defaults) ) {
     return sub {
-      my @filled = _fill_hash($defaults, @_);
+      my @filled = _fill_hash($defaults, @_[ $offset .. $#_ ]);
       my %processed = @filled;
       while (my ($key, $value) = each %processed) {
 	(! defined($processed{$key})) && defined $exsubs{$key} or next;
-	$processed{$key} = $exsubs{$key}->(@filled);
+	$processed{$key} = $exsubs{$key}->(@_[ 0 .. $offset ], @filled);
       }
       return %processed;
     };
