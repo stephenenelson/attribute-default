@@ -20,7 +20,7 @@ use Carp;
 our $VERSION = do { my @r = (q$Revision$ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
 
-sub default : ATTR(CODE) {
+sub Default : ATTR(CODE) {
     my ($glob, $attr, $defaults) = @_[1,3,4];
 
     ref $defaults or $defaults = [$defaults];
@@ -70,13 +70,13 @@ Attribute::Default - Perl extension to assign default values to subroutine argum
   use base 'Attribute::Default';
 
   # Makes person's name default to "jimmy"
-  sub introduce : default("jimmy") {
+  sub introduce : Default("jimmy") {
      my ($name) = @_;
      print "My name is $name\n";
   }
 
   # Make age default to 14, sex default to male
-  sub vitals : default({age => 14, sex => 'male'}) {
+  sub vitals : Default({age => 14, sex => 'male'}) {
      my %vitals = @_;
      print "I'm $vitals{'sex'}, $vitals{'age'} years old, and am from $vitals{'location'}\n";
   }
@@ -98,7 +98,7 @@ default to 'Mister Morton' and 'walked', you can declare it like this:
   package WhateverPackage;
   use base 'Attribute::Default';
 
-  sub what_happened : default(undef, 'Mister Morton', 'walked down the street') {
+  sub what_happened : Default(undef, 'Mister Morton', 'walked down the street') {
     my ($time, $subject, $verb) = @_;
 
     print "At $time, $subject $verb\n";
@@ -127,7 +127,7 @@ C<default()>, like so:
   package YetAnotherPackage;
   use base 'Attribute::Default';
 
-  sub found_pet : default({name => 'Rufus Xavier Sarsaparilla', pet => 'kangaroo'}) {
+  sub found_pet : Default({name => 'Rufus Xavier Sarsaparilla', pet => 'kangaroo'}) {
     my %args = @_;
     my ($first_name) = split(/ /, $args{'name'}, 2);
     print "$first_name found a $args{'pet'} that followed $first_name home\n"; 
@@ -152,9 +152,7 @@ C<default()>, like so:
 
 An alpha module. Bugs unknown but probably plentiful. Based on The
 Damian's Attribute::Handlers, so shares whatever bugs may be found
-there. The installation process cannot use the normal mechanism for
-auto-installing Attribute::Handlers, so I'm afraid you'll have to
-install it yourself if it's not there.
+there. 
 
 =head1 AUTHOR
 
