@@ -1,4 +1,14 @@
 Revision history for Perl extension Attribute::Default.
+
+1.14  Mon May 13 18:22:15 PDT 2002
+	- Added check for ':method' to Defaults().
+
+1.13  Mon May 13 17:43:36 PDT 2002
+	- Removed DefaultMethod, added check for ':method'.
+
+1.12  Sun May 10 00:40:09 PDT 2002
+	- Added "Sub::NamedParams" to manpage.
+
 1.11  Thu May  9 18:29:21 PDT 2002
 	- Added DefaultSub attribute. Refactored main code. Added minimal documentation for DefaultMethod.
 
