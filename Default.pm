@@ -156,9 +156,13 @@ parameters. They work fine, but every once in a while one wishes that
 perl 5 had a simple mechanism to provide default values to
 subroutines.
 
-This module attempts to fill that gap. If you would like to have a
-subroutine that takes three parameters, but the second two should
-default to 'Mister Morton' and 'walked', you can declare it like this:
+This module attempts to fill that gap. 
+
+=head2 SIMPLE DEFAULTS
+
+If you would like to have a subroutine that takes three parameters,
+but the second two should default to 'Mister Morton' and 'walked', you
+can declare it like this:
 
   package WhateverPackage;
   use base 'Attribute::Default';
@@ -187,7 +191,7 @@ argument.
 
 You can also use the default mechanism to handle the named parameter
 style of coding. Just pass a hash reference as the value of
-C<default()>, like so:
+C<Default()>, like so:
 
   package YetAnotherPackage;
   use base 'Attribute::Default';
@@ -211,13 +215,36 @@ C<default()>, like so:
 
   # Prints "Albert found a rhinoceros that followed Albert home"...
   found_pet(name => 'Albert Andreas Armadillo', pet => 'rhinoceros');
-  
+
+=head2 DEFAULTING REFERENCES
+
+If you prefer to pass around your arguments as references, rather than
+full lists, Attribute::Default can accomodate you. Simply use
+C<Defaults()> instead of C<Default()>, and your reference parameters
+will have defaults added wherever necessary. For example:
+
+  package StillAnotherPackage;
+  use base 'Attribute::Default';
+
+  sub lally : Defaults({part_of_speech => 'adverbs', place => 'here'}, 3) {
+    my ($in, $number) = @_;
+    print join(' ', ('lally') x $number), ", get your $in->{part_of_speech} $in->{'place'}...\n";
+  }
+
+  # Prints "lally lally lally, get your adverbs here"
+  lally();
+
+  # Prints "lally, get your nouns here"
+  lally({part_of_speech => 'nouns'}, 1);
+
+If an argument reference's type does not match an expected default
+type, then it is passed along without any attempt at defaulting.
+
 
 =head1 BUGS
 
-An alpha module. Bugs unknown but probably plentiful. Based on The
-Damian's Attribute::Handlers, so shares whatever bugs may be found
-there. 
+An alpha module; may change. Based on (The) Damian Conway's
+Attribute::Handlers, so shares whatever bugs may be found there.
 
 =head1 AUTHOR
 
