@@ -189,9 +189,9 @@ sub _fill_array_sub {
       my ($pre, $args) = $argument_func->(@_);
       my @filled = _fill_arr($noexsubs, @$args);
       my @processed = @filled;
-      while (my ($idx, $sub) = each %$exsubs) {
+      while (my ($idx, $exsub) = each %$exsubs) {
 	defined( $args->[$idx] ) and next;
-	$processed[$idx] = $exsubs->{$idx}->(@$pre, @filled);
+	$processed[$idx] = &$exsub(@$pre, @filled);
       }
       return ( @$pre, @processed);
     };
@@ -205,19 +205,33 @@ sub _fill_array_sub {
 }
 
 ##
-## _find_exsubs_in_hash()
+## _extract_exsubs_hash()
+##
+## Arguments:
+##
+##   DEFAULTS: hashref -- Name-value pairs of defaults
+##
+## Returns: (array)
+##
+##   hashref -- name-value pairs of all exsubs
+##   hashref -- name-value pairs of all non-exsub defaults
 ##
 ## Returns the exsubs in a hash of defaults.
 ##
-sub _find_exsubs_in_hash {
+sub _extract_exsubs_hash {
   my ($defaults) = @_;
 
   my %exsubs = ();
+  my %noexsubs = ();
   while ( my ($key, $value) = each %$defaults ) {
-    (UNIVERSAL::isa( $value, EXSUB_CLASS ) ) or next;
-    $exsubs{$key} = $value;
+    if (UNIVERSAL::isa( $value, EXSUB_CLASS ) ) {
+      $exsubs{$key} = $value;
+    }
+    else {
+      $noexsubs{$key} = $value;
+    }
   }
-  return %exsubs;
+  return (\%exsubs, \%noexsubs);
 }
 
 ##
@@ -229,16 +243,17 @@ sub _find_exsubs_in_hash {
 sub _fill_hash_sub {
   my ($defaults, $argument_func) = @_;
 
-  if ( my %exsubs = _find_exsubs_in_hash($defaults) ) {
+  my ($exsubs, $noexsubs) = _extract_exsubs_hash($defaults);
+  if ( %$exsubs ) {
     return sub {
       my ($pre, $args) = $argument_func->(@_);
-      my @filled = _fill_hash($defaults, @$args);
+      my @filled = _fill_hash($noexsubs, @$args);
       my %processed = @filled;
-      while (my ($key, $value) = each %processed) {
-	(! defined $processed{$key}) && defined $exsubs{$key} or next;
-	$processed{$key} = $exsubs{$key}->(@$pre, @filled);
+      while (my ($key, $exsub) = each %$exsubs) {
+	(! defined $processed{$key}) or next;
+	$processed{$key} = &$exsub(@$pre, @filled);
       }
-      return %processed;
+      return (@$pre, %processed);
     };
   }
   else {
@@ -651,21 +666,11 @@ C<Default()> attribute using C<exsub>, like so:
 Here, if $time is undef, it gets filled in with the results of
 executing get_time().
 
-Subroutine expansion is not yet implemented for the C<Defaults()> attribute.
-
-A "die" in an exsub may have an inaccurate line number appended.
-
-
 =head1 BUGS
 
-Based on (The) Damian Conway's Attribute::Handlers, so shares whatever
-bugs may be found there.
+Subroutine expansion is not yet fully implemented for the C<Defaults()> attribute.
 
-As mentioned, subroutine expansion is not yet implemented for the
-C<Defaults()> attribute.
-
-The C<$self> object (i.e. argument 0) is not passed to subroutine
-expansions with a :method flag.
+There's an as-yet unmeasured compile time delay as Attribute::Default does its magic.
 
 =head1 AUTHOR
 
@@ -673,7 +678,7 @@ Stephen Nelson, E<lt>senelson@tdl.comE<gt>
 
 =head1 SPECIAL THANKS TO
 
-Randy Ray, Jeff Anderson, and my brother and sister monks at www.perlmonks.org.
+Christine Doyle, Randy Ray, Jeff Anderson, and my brother and sister monks at www.perlmonks.org.
 
 =head1 SEE ALSO
 
