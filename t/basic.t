@@ -7,7 +7,7 @@ use lib '..';
 
 #########################
 
-use Test::More tests => 21;
+use Test::More tests => 22;
 use Attribute::Default;
 ok(1); # If we made it this far, we're ok.
 
@@ -108,10 +108,14 @@ is(double_defs({item => 'hamlet'}, 'dane', [undef, 5]), 'hamlet dane 3 5');
 
   sub new { my $self = [3]; bless $self; }
 
-  sub exp_meth :method :Default({foo => exsub { _check_and_mult($_[0], 2); } }) {
+  sub exp_meth_hash :method :Default({foo => exsub { _check_and_mult($_[0], 4); } }) {
     my $self = shift;
     my %args = @_;
     return $args{'foo'};
+  }
+
+  sub exp_meth_array :method :Default(exsub{ _check_and_mult($_[0], 2) }) {
+    return $_[1];
   }
 
   sub exp_meths :method :Defaults({bar => exsub { _check_and_mult($_[0], 3); }}) {
@@ -143,7 +147,8 @@ is(Attribute::Default::TestExpand::threefaces_sub(2), "2 3 4");
   my $testobj = Attribute::Default::TestExpand->new();
  TODO: { 
     local $TODO = 'Passing $self to exsubs not implemented';
-    is($testobj->exp_meth(), 6);
+    is($testobj->exp_meth_hash(), 6);
+    is($testobj->exp_meth_array(), 12);
   }
  TODO: {
     local $TODO = 'Expanding subs in Defaults() not implemented';
