@@ -21,7 +21,7 @@ our $VERSION = do { my @r = (q$Revision$ =~ /\d+/g); sprintf "%d."."%02d" x $#r,
 
 
 sub default : ATTR(CODE) {
-    my ($package, $glob, $referent, $attr, $defaults, $phase) = @_;
+    my ($glob, $attr, $defaults) = @_[1,3,4];
 
     ref $defaults or $defaults = [$defaults];
 
