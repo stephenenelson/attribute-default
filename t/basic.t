@@ -7,7 +7,7 @@ use lib '..';
 #########################
 
 use Test;
-BEGIN { plan tests => 16 };
+BEGIN { plan tests => 16, todo => [16] };
 use Attribute::Default;
 ok(1); # If we made it this far, we're ok.
 
@@ -20,14 +20,10 @@ ok(1); # If we made it this far, we're ok.
 
   no warnings 'uninitialized';
 
-  our @EXPORT = qw(single double hash_vals method_hash single_defs double_defs single_sub);
+  our @EXPORT = qw(single double hash_vals method_hash single_defs double_defs);
     
   sub single : Default('single value') {
     return "Here I am: " . join(',', @_);
-  }
-
-  sub single_sub : DefaultSub(sub { return "3" }) {
-    return "Should be three: $_[0]";
   }
 
   sub double : Default('two', 'values') {
@@ -92,5 +88,22 @@ ok(single_defs("Wrong type of argument"), 'Type: , Name: , Varietal: ');
 ok(double_defs(), 'polonious fishmonger 3');
 ok(double_defs({item => 'hamlet'}, 'dane', [undef, 5]), 'hamlet dane 3 5');
 
-ok(single_sub(), 'Should be three: 3');
+{
+  package Attribute::Default::TestExpand;
+  use Attribute::Default 'exsub';
+  use base qw(Attribute::Default);
+
+  sub single_sub : Default(exsub { return "3" }) {
+    return "Should be three: $_[0]";
+  }
+}
+  
+ok(Attribute::Default::TestExpand::single_sub(), 'Should be three: 3');
+
+
+
+
+
+
+
 

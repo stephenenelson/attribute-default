@@ -14,16 +14,24 @@ use warnings;
 no warnings 'redefine';
 use attributes;
 
-use base 'Attribute::Handlers';
+use base qw(Attribute::Handlers Exporter);
 
 use Carp;
 
 our $VERSION = do { my @r = (q$Revision$ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
+our @EXPORT_OK = qw(exsub);
 
+use constant EXSUB_CLASS => ( __PACKAGE__ . '::ExSub' );
+
+
+sub exsub(&) {
+  my $sub = (@_);
+  bless $sub, EXSUB_CLASS;
+}
 
 sub _get_args {
-  my ($glob, $orig, $attr, $defaults) = @_[1,2,3,4];
+  my ($glob, $orig, $attr, $defaults) = @_[1 .. 4];
   (ref $defaults && ref $defaults ne 'CODE') or $defaults = [$defaults];
 
   return ($glob, $attr, $defaults, $orig);
@@ -49,6 +57,7 @@ sub _is_method {
 
 sub Default : ATTR(CODE) {
   my ($glob, $attr, $defaults, $orig) = _get_args(@_);
+
   
   if ( _is_method($orig) ) {
     *$glob = _sub($attr, {
@@ -74,27 +83,6 @@ sub Default : ATTR(CODE) {
 			  },
 			 }, $defaults);
   }
-}
-
-
-sub DefaultSub : ATTR(CODE) {
-  my ($glob, $attr, $defaults, $orig) = _get_args(@_);
-  
-  *$glob = _sub($attr, {
-		 'ARRAY' => sub {
-		   my @expanded_defaults = map { ref $_ eq 'CODE' ? &$_() : $_ } @$defaults;
-      @_ = _fill_arr(\@expanded_defaults, @_);
-		   goto $orig;
-		 },
-		 'HASH' => sub {
-		   my %expanded_defaults = %$defaults;
-		   while ( my ($key, $val) = each %expanded_defaults ) {
-		     ref $val eq 'CODE' and $expanded_defaults{$key} = &$val();
-		   }
-		   @_ = _fill_hash(\%expanded_defaults, @_);
-		   goto $orig;
-		 },
-		 }, $defaults);
 }
 
 
@@ -355,7 +343,7 @@ Stephen Nelson, E<lt>steven@jubal.comE<gt>
 
 =head1 SPECIAL THANKS TO
 
-Randy Ray, jeffa, and my brother and sister monks at www.perlmonks.org.
+Randy Ray, Jeff Anderson, and my brother and sister monks at www.perlmonks.org.
 
 =head1 SEE ALSO
 
