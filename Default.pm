@@ -17,6 +17,7 @@ use attributes;
 use base qw(Attribute::Handlers Exporter);
 
 use Carp;
+use Symbol;
 
 our $VERSION = do { my @r = (q$Revision$ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
@@ -24,9 +25,21 @@ our @EXPORT_OK = qw(exsub);
 
 use constant EXSUB_CLASS => ( __PACKAGE__ . '::ExSub' );
 
+sub import {
+  my ($class, $subname) = @_;
+  my $callpkg = (caller())[0];
+
+  if (defined($subname) && $subname eq 'exsub') {
+    no strict 'refs';
+    *{ "${callpkg}::exsub" } = \&exsub;
+    *{ "Attribute::Handlers::exsub" } = \&exsub;
+  } 
+    
+}
 
 sub exsub(&) {
-  my $sub = (@_);
+  my ($sub) = @_;
+  ref $sub eq 'CODE' or die "Sub '$sub' can't be blessed";
   bless $sub, EXSUB_CLASS;
 }
 
@@ -37,14 +50,11 @@ sub _get_args {
   return ($glob, $attr, $defaults, $orig);
 }
 
-sub _sub {
-  my ($attr, $subs, $defaults) = @_;
-
-  defined $subs->{ref $defaults} or confess "Argument to attribute '$attr' must be of one of the following types: ${\( join ',', keys %$subs)}; stopped";
-  
-  return $subs->{ref $defaults};
-}
-
+##
+## _is_method()
+##
+## Returns true if the given reference has a ':method' attribute.
+##
 sub _is_method {
   my ($orig) = @_;
 
@@ -55,34 +65,91 @@ sub _is_method {
   return;
 }
 
+##
+## _get_fill()
+##
+## Returns an appropriate subroutine to process the given defaults.
+##
+sub _get_fill {
+  my ($defaults) = @_;
+
+  ( ( ref $defaults eq 'ARRAY' ) || ( ref $defaults eq 'HASH' ) ) or $defaults = [$defaults];
+
+  if (ref $defaults eq 'ARRAY') {
+    my %exsubs = ();
+    for ( $[ .. $#$defaults ) {
+      (UNIVERSAL::isa( $defaults->[$_], EXSUB_CLASS )) or next;
+      $exsubs{$_} = $defaults->[$_];
+      $defaults->[$_] = undef;
+    }
+    if (%exsubs) {
+      return sub {
+	my @filled = _fill_arr($defaults, @_);
+	my @processed = @filled;
+	foreach ($[ .. $#processed) {
+	  (! defined($processed[$_]) && defined $exsubs{$_}) or next;
+	  $processed[$_] = $exsubs{$_}->(@filled);
+	}
+	return @processed;
+      };
+    }
+    else {
+      return sub { _fill_arr($defaults, @_) };
+    }
+  }
+  elsif(ref $defaults eq 'HASH') {
+    my %exsubs = ();
+    while ( my ($key, $value) = each %$defaults ) {
+      (UNIVERSAL::isa( $value, EXSUB_CLASS ) ) or next;
+      $exsubs{$key} = $value;
+      $defaults->{$key} = undef;
+    }
+    if (%exsubs) {
+      return sub {
+	my @filled = _fill_hash($defaults, @_);
+	my %processed = @filled;
+	while (my ($key, $value) = each %processed) {
+	  (! defined($processed{$key})) && defined $exsubs{$key} or next;
+	  $processed{$key} = $exsubs{$key}->(@filled);
+	}
+	return %processed;
+      }
+    }
+    else {
+      return sub { _fill_hash($defaults, @_) };
+    }
+  }
+}
+
+##
+## _get_sub()
+##
+## Returns the appropriate subroutine wrapper for $orig.
+sub _get_sub {
+  my ($defaults, $orig) = @_;
+
+  my $fill = _get_fill($defaults);
+
+  if ( _is_method($orig) ) {
+    return sub {
+      @_ = ( $_[0], $fill->(@_[ $[ + 1 .. $#_ ]) );
+      goto $orig;
+    };
+  }
+  else {
+    return sub {
+      @_ = $fill->(@_);
+      goto $orig;
+    };
+  }
+}
+    
+
 sub Default : ATTR(CODE) {
   my ($glob, $attr, $defaults, $orig) = _get_args(@_);
 
-  
-  if ( _is_method($orig) ) {
-    *$glob = _sub($attr, {
-			  ARRAY => sub {
-			    @_ = ( $_[0], _fill_arr($defaults, @_[ $[ + 1 .. $#_ ]) );
-			    goto $orig;
-			  },
-			  HASH => sub {
-			    @_ = ($_[0], _fill_hash($defaults, @_[ $[ + 1 .. $#_ ]));
-			    goto $orig;
-			  },
-			 }, $defaults);
-  }
-  else {
-    *$glob = _sub($attr, {
-			  ARRAY => sub {
-			    @_ = _fill_arr($defaults, @_);
-			    goto $orig;
-			  },
-			  HASH => sub {
-			    @_ = _fill_hash($defaults, @_);
-			    goto $orig;
-			  },
-			 }, $defaults);
-  }
+  *$glob = _get_sub($defaults, $orig);
+
 }
 
 
