@@ -103,7 +103,7 @@ sub _is_method {
 ##
 sub _extract_exsubs_array {
   my ($defaults) = @_;
-  
+
   my %exsubs = ();
   my @noexsubs = ();
 
@@ -189,9 +189,9 @@ sub _fill_array_sub {
       my ($pre, $args) = $argument_func->(@_);
       my @filled = _fill_arr($noexsubs, @$args);
       my @processed = @filled;
-      foreach (0 .. ( @$pre + @$args) ) {
-	 (! defined($args->[$_]) ) && defined $exsubs->{$_} or next;
-	$processed[$_] = $exsubs->{$_}->(@$pre, @filled);
+      while (my ($idx, $sub) = each %$exsubs) {
+	defined( $args->[$idx] ) and next;
+	$processed[$idx] = $exsubs->{$idx}->(@$pre, @filled);
       }
       return ( @$pre, @processed);
     };
