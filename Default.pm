@@ -635,11 +635,53 @@ C<Default()> attribute using C<exsub>, like so:
 Here, if $time is undef, it gets filled in with the results of
 executing get_time().
 
+Exsubs are passed the same arguments as the base subroutine on which
+they're declared, so you can use other arguments (including default
+arguments) in your exsubs, like so:
+
+ sub double : Default( 2, exsub { $_[0] * 2 }) {
+     my ($first, $second) = @_;
+
+     print "First: $first Second: $second\n";
+}
+
+ # Prints "First: 2 Second: 4"
+ double();
+
+ # Prints "First: 3 Second: 6"
+ double(3);
+
+ # Prints "First: 4 Second: 5"
+ double(4, 5);
+
+Note that this means that exsubs for methods are effectively called as methods:
+
+ package MyObject;
+
+ sub new { my $type = shift; bless [3], $type; }
+
+ sub double :method :Default( exsub { $_[0][0] * 2 } ) {
+   my $self = shift;
+   print $_[1], "\n";
+ }
+
+ my $myobject = MyObject->new();
+
+ # Prints 6
+ $myobject->double()
+
+ # Prints 4
+ $myobject->double(4);
+
+To avoid potential recursion, other exsub defaults are not passed to
+exsub arguments.
+
 =head1 BUGS
 
-Subroutine expansion is not yet fully implemented for the C<Defaults()> attribute.
-
 There's an as-yet unmeasured compile time delay as Attribute::Default does its magic.
+
+Use of large numbers of default arguments to a subroutine can be a
+sign of bad design. Use responsibly.
 
 =head1 AUTHOR
 
