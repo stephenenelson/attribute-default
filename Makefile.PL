@@ -1,5 +1,19 @@
 use ExtUtils::MakeMaker;
 
+# Don't print out warnings caused by Attribute::Handlers already on
+# the scene (using same subroutine-augmentation trick as for
+# defaults. Funny how many nails there are in this world when you've
+# got a shiny hammer...)
+{
+  no warnings 'redefine';
+
+  my $old_handler = \&ExtUtils::MakeMaker::warnhandler;
+  *ExtUtils::MakeMaker::warnhandler = sub {
+    $_[0] =~ /^Too late to run/ and return;
+    $old_handler->(@_);
+  };
+}
+
 WriteMakefile(
     'NAME'		=> 'Attribute::Default',
     'VERSION_FROM'	=> 'Default.pm', # finds $VERSION
