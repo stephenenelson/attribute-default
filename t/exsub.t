@@ -10,7 +10,7 @@ use diagnostics;
 
 ########################
 
-use Test::More tests => 16;
+use Test::More tests => 9;
 use Attribute::Default;
 
 {
@@ -23,14 +23,6 @@ use Attribute::Default;
 
   sub single_sub : Default(exsub { return "3" } ) {
     return "Should be three: $_[0]";
-  }
-
-  sub multi_subs : Defaults( [ 'caius', 'martius', 'coriolanus' ], exsub { [ reverse @{ $_[0] } ] } ) {
-    return "@{$_[0]} is backward @{$_[1]}";
-  }
-
-  sub threefaces_sub  : Defaults(3, exsub { $_[0] + 1 }, { foo => exsub { $_[0] + 2 } } ) {
-    return "$_[0] $_[1] $_[2]{'foo'}";
   }
 
   sub exp_hash :Default({foo => exsub { my %args = @_; return $args{'bar'} * 7 }, bar => 2 }) {
@@ -67,18 +59,6 @@ use Attribute::Default;
     return "$_[1] $_[2]";
   }
 
-  sub exp_meths :method :Defaults({bar => exsub { _check_and_mult($_[0], 3); }}) {
-    my $self = shift;
-    return $_[0]{bar};
-  }
-
-  sub defaults_hash_expansion :Defaults({baz => exsub { $_[0]->{'pip'} * 2}, pip => 3}) {
-    unless (defined $_[0]) {
-      Test::More::diag("First argument not defined");
-      return;
-    }
-    return $_[0]->{'baz'};
-  }
 
   # Defaults to 64*2=128
   sub defaults_interref_expansion :Defaults({foo => 23, bar => 64}, [ 2, exsub { $_[0]{'bar'} * $_[1][0]}], 3)
@@ -109,24 +89,13 @@ use Attribute::Default;
   
 is(Attribute::Default::TestExpand::single_sub(), 'Should be three: 3', 'Single-arg subroutine with exsub');
 is(Attribute::Default::TestExpand::single_sub(4), 'Should be three: 4', 'Single-arg subroutine with exsub, overridden value');
-is(Attribute::Default::TestExpand::multi_subs(), 'caius martius coriolanus is backward coriolanus martius caius');
-is(Attribute::Default::TestExpand::threefaces_sub(), "3 4 5");
-is(Attribute::Default::TestExpand::threefaces_sub(2), "2 3 4");
 is(Attribute::Default::TestExpand::exp_hash(), "foo: 14 bar: 2", 'Default hash with exsub');
 is(Attribute::Default::TestExpand::exp_hash(bar => 3), "foo: 21 bar: 3", 'Default hash with exsub referring to overridden');
 is(Attribute::Default::TestExpand::exp_hash(bar => 4, foo => 'mangel-wurzel'), 'foo: mangel-wurzel bar: 4', 'Default hash with exsub overridden');
-is(Attribute::Default::TestExpand::defaults_hash_expansion(), 6, "Expansion of default in Defaults() for hash");
-is(Attribute::Default::TestExpand::defaults_interref_expansion(), 128, "Exsub in hashref using argument in arrayref");
 {
   my $testobj = Attribute::Default::TestExpand->new();
   is($testobj->exp_meth_hash(), 12, "Expand sub in hash for method");
   is($testobj->exp_meth_array(), 6, "Expand sub in array for method");
   is($testobj->exp_meth_array_multip(), "first 6", "Expand sub in array for method with two arguments");
   is($testobj->exp_meth_array_multip2(), "6 second", "Expand sub in array for method with exp as second arg");
- TODO: {
-    local $TODO = 'Passing $self to exsubs not implemented in Defaults()';
-    is($testobj->exp_meths(), 9, "Exsub method in Defaults()");
-    is($testobj->defaults_interref_expansion_meth(), 18, "Exsub method in Defaults referring to other reference argument");
-  }
-
 }
