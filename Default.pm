@@ -1,5 +1,13 @@
 package Attribute::Default;
 
+####
+#### Attribute::Default
+####
+#### $Id$
+####
+#### See perldoc for details.
+####
+
 use 5.006;
 use strict;
 use warnings;
@@ -9,7 +17,7 @@ use base 'Attribute::Handlers';
 
 use Carp;
 
-our $VERSION = '0.01';
+our $VERSION = $VERSION = do { my @r = (q$Revision$ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
 
 sub default : ATTR(CODE) {
