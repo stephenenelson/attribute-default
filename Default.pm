@@ -20,52 +20,74 @@ use Carp;
 our $VERSION = do { my @r = (q$Revision$ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
 
-sub Default : ATTR(CODE) {
-    my ($glob, $attr, $defaults) = @_[1,3,4];
-    
-    ref $defaults or $defaults = [$defaults];
 
-    my $orig = *$glob{CODE};
-    if (ref $defaults eq 'ARRAY') {
-	*$glob = sub {
-	  @_ = _fill_arr($defaults, @_);
-	  goto $orig;
-	};
-    }
-    elsif (ref $defaults eq 'HASH') {
-	*$glob = sub {
-	    @_ = _fill_hash($defaults, @_);
-	    goto $orig;
-	};
-    }
-    else {
-	confess "Argument to attribute '$attr' must be an arrayref, scalar, or hashref; stopped";
-    }
+sub _get_args {
+  my ($glob, $attr, $defaults) = @_[1,3,4];
+  (ref $defaults && ref $defaults ne 'CODE') or $defaults = [$defaults];
+  my $orig = *$glob{CODE};
 
+  return ($glob, $attr, $defaults, $orig);
 }
+
+sub _sub {
+  my ($attr, $subs, $defaults) = @_;
+
+  defined $subs->{ref $defaults} or confess "Argument to attribute '$attr' must be of one of the following types: ${\( join ',', keys %$subs)}; stopped";
+  
+  return $subs->{ref $defaults};
+}
+
+sub Default : ATTR(CODE) {
+    my ($glob, $attr, $defaults, $orig) = _get_args(@_);
+
+    *$glob = _sub($attr, {
+			  ARRAY => sub {
+			    @_ = _fill_arr($defaults, @_);
+			    goto $orig;
+			  },
+			  HASH => sub {
+			    @_ = _fill_hash($defaults, @_);
+			    goto $orig;
+			  },
+			 }, $defaults);
+  }
 
 sub DefaultMethod : ATTR(CODE) {
-  my ($glob, $attr, $defaults) = @_[1,3,4];
+  my ($glob, $attr, $defaults, $orig) = _get_args(@_);
 
-  my $orig = *$glob{CODE};
-  ref $defaults or $defaults = [$defaults];
-  if (ref $defaults eq 'ARRAY') {
-    *$glob = sub {
-      @_ = ( $_[0], _fill_arr($defaults, @_[ $[ + 1 .. $#_ ]) );
-      goto $orig;
-    };
-  }
-  elsif (ref $defaults eq 'HASH') {
-    *$glob = sub {
-      @_ = ($_[0], _fill_hash($defaults, @_[ $[ + 1 .. $#_ ]));
-      goto $orig;
-    };
-  }
-  else {
-    confess "Argument to attribute '$attr' must be an arrayref, scalar, or hashref; stopped";
-  }
+  
+  *$glob = _sub($attr, {
+		 ARRAY => sub {
+		   @_ = ( $_[0], _fill_arr($defaults, @_[ $[ + 1 .. $#_ ]) );
+		   goto $orig;
+		 },
+		 HASH => sub {
+		   @_ = ($_[0], _fill_hash($defaults, @_[ $[ + 1 .. $#_ ]));
+		   goto $orig;
+		 },
+		}, $defaults);
 }
 
+
+sub DefaultSub : ATTR(CODE) {
+  my ($glob, $attr, $defaults, $orig) = _get_args(@_);
+  
+  *$glob = _sub($attr, {
+		 'ARRAY' => sub {
+		   my @expanded_defaults = map { ref $_ eq 'CODE' ? &$_() : $_ } @$defaults;
+      @_ = _fill_arr(\@expanded_defaults, @_);
+		   goto $orig;
+		 },
+		 'HASH' => sub {
+		   my %expanded_defaults = %$defaults;
+		   while ( my ($key, $val) = each %expanded_defaults ) {
+		     ref $val eq 'CODE' and $expanded_defaults{$key} = &$val();
+		   }
+		   @_ = _fill_hash(\%expanded_defaults, @_);
+		   goto $orig;
+		 },
+		 }, $defaults);
+}
 
 
 ##
@@ -239,6 +261,12 @@ C<Default()>, like so:
 
   # Prints "Albert found a rhinoceros that followed Albert home"...
   found_pet(name => 'Albert Andreas Armadillo', pet => 'rhinoceros');
+
+=head2 DEFAULTING METHOD ARGUMENTS
+
+If you are performing object-oriented programming, you can use the C<DefaultMethod()> attribute. C<DefaultMethod>
+ignores the first argument (in other words, the 'type' or 'self' argument), so you can use named parameters with
+a constructor or method just like the C<Default()> attribute.
 
 =head2 DEFAULTING REFERENCES
 
