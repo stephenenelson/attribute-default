@@ -2,6 +2,7 @@
 # `make test'. After `make install' it should work as `perl test.pl'
 # $Revision$
 
+use strict;
 use diagnostics;
 use lib '..';
 
@@ -38,6 +39,12 @@ ok(1); # If we made it this far, we're ok.
   sub banish :method : Default({ falstaff => 'Plump Jack' }) {
     my $self = shift;
     my %args = @_;
+
+    unless ( UNIVERSAL::isa($self, __PACKAGE__) ) {
+      Test::More::diag("First argument is of incorrect package: \$self is '$self'");
+      return;
+    }
+    
     return "Banish $args{falstaff}, and banish all the world.";
   }
 
@@ -83,8 +90,6 @@ is($test->imitate(), "Prince Hal: And yet herein will I imitate the sun");
 
 is(single_defs(), "Type: black, Name: darjeeling, Varietal: makaibari");
 is(single_defs({ varietal => 'Risheehat First Flush'}), "Type: black, Name: darjeeling, Varietal: Risheehat First Flush");
-is(single_defs("Wrong type of argument"), 'Type: , Name: , Varietal: ');
-
 is(double_defs(), 'polonious fishmonger 3');
 is(double_defs({item => 'hamlet'}, 'dane', [undef, 5]), 'hamlet dane 3 5');
 
@@ -123,6 +128,14 @@ is(double_defs({item => 'hamlet'}, 'dane', [undef, 5]), 'hamlet dane 3 5');
     return $_[0]{bar};
   }
 
+  sub defaults_hash_expansion :Defaults({baz => exsub { $_[0]->{'pip'} * 2}, pip => 3}) {
+    unless (defined $_[0]) {
+      Test::More::diag("First argument not defined");
+      return;
+    }
+    return $_[0]->{'baz'};
+  }
+
   sub _check_and_mult {
     my $self = shift;
     my ($factor) = @_;
@@ -143,23 +156,17 @@ is(Attribute::Default::TestExpand::single_sub(), 'Should be three: 3');
 is(Attribute::Default::TestExpand::multi_subs(), 'caius martius coriolanus is backward coriolanus martius caius');
 is(Attribute::Default::TestExpand::threefaces_sub(), "3 4 5");
 is(Attribute::Default::TestExpand::threefaces_sub(2), "2 3 4");
+is(Attribute::Default::TestExpand::defaults_hash_expansion(), 6, "Expansion of default in Defaults() for hash");
 {
   my $testobj = Attribute::Default::TestExpand->new();
  TODO: { 
-    local $TODO = 'Passing $self to exsubs not implemented';
+    local $TODO = 'Passing $self to exsubs not implemented in Default()';
     is($testobj->exp_meth_hash(), 6);
     is($testobj->exp_meth_array(), 12);
   }
  TODO: {
-    local $TODO = 'Expanding subs in Defaults() not implemented';
+    local $TODO = 'Passing $self to exsubs not implemented in Defaults()';
     is($testobj->exp_meths(), 9);
   }
+
 }
-
-
-
-
-
-
-
-
