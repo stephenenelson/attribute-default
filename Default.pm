@@ -345,12 +345,9 @@ sub _fill_arr {
   if ($#$defaults > $#_) {
     push(@filled, @$defaults[scalar @_ .. $#$defaults]);
   }
-  foreach ( @filled ) {
-    UNIVERSAL::isa($_, EXSUB_CLASS) and $_ = undef;
-  }
-  
+
   return @filled;
-}  
+}
 
 ##
 ## _make_exsub_filter()
@@ -404,40 +401,6 @@ sub _make_exsub_filter {
     return @$args;
   };
 }
-
-###
-### Code comprehension notes: exsubs
-###
-### It seems I've scrambled my exsub handling. Defaults()
-### handles exsubs by sorting them out at compile time
-### and storing them elsewhere, then undeffing them in the original
-### list of defaults. Default() used to do this
-### as well, but I (in my foolishness) forgot what I was doing and
-### broke that behavior.
-###
-### I intend to fix this problem.
-###
-### It seems the overall process is (or should be) as follows:
-###
-### Compile time:
-### 1. Separate exsubs from rest of defaults
-### 2. Choose appropriate subroutine to filter defaults 
-###    (aka is-it-a-method? Do I need exsub expansion?)
-### 3. Substitute wrapper subroutine for original subroutine
-###
-### Runtime:
-### 1. Interpolate defaults.
-### 2. Run exsubs and interpolate results.
-###
-### I may get some additional clarity by treating exsubs completely separately.
-### Right now they're part of the main filter method... but why not have
-### multiple filter methods?
-###
-### Finally, and unrelated, I've figured out how handle :method subs. Easy. Bloody easy.
-### At compile time, if I've got a :method marker, add an 'undef' to the beginning of the
-### default list. Hmm... no, won't work for hashes... 
-###
-
 
 sub Defaults : ATTR(CODE) {
   my ($glob, $orig, $attr, $defaults_list) = @_[1 .. 4];
