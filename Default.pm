@@ -42,7 +42,7 @@ sub import {
 
 sub exsub(&) {
   my ($sub) = @_;
-  ref $sub eq 'CODE' or die "Sub '$sub' can't be blessed";
+  ref $sub eq 'CODE' or die "Sub '$sub' can't be blessed: must be CODE ref";
   bless $sub, EXSUB_CLASS;
 }
 
@@ -341,7 +341,7 @@ parameters. They work fine, but every once in a while one wishes that
 perl 5 had a simple mechanism to provide default values to
 subroutines.
 
-This module attempts to fill that gap. 
+This module attempts to provide that mechanism.
 
 =head2 SIMPLE DEFAULTS
 
@@ -463,8 +463,10 @@ methods. So you can use C<Default()> and C<Defaults()> just as for regular funct
 =head2 EXPANDING SUBROUTINES
 
 Sometimes it's not possible to know in advance what the default should
-be for a particular argument. No problem! You can pass an expanding
-subroutine to the C<Default()> attribute using C<exsub>, like so:
+be for a particular argument. Instead, you'd like the default to be
+the return value of some bit of Perl code invoked when the subroutine
+is called. No problem! You can pass an expanding subroutine to the
+C<Default()> attribute using C<exsub>, like so:
 
  use Attribute::Default 'exsub';
  use base 'Attribute::Default';
@@ -482,12 +484,18 @@ Subroutine expansion is not yet implemented for the C<Defaults()> attribute.
 
 =head1 BUGS
 
-An alpha module; may change. Based on (The) Damian Conway's
-Attribute::Handlers, so shares whatever bugs may be found there.
+Based on (The) Damian Conway's Attribute::Handlers, so shares whatever
+bugs may be found there.
+
+As mentioned, subroutine expansion is not yet implemented for the
+C<Defaults()> attribute.
+
+The C<$self> object (i.e. argument 0) is not passed to subroutine
+expansions with a :method flag.
 
 =head1 AUTHOR
 
-Stephen Nelson, E<lt>steven@jubal.comE<gt>
+Stephen Nelson, E<lt>senelson@tdl.comE<gt>
 
 =head1 SPECIAL THANKS TO
 
