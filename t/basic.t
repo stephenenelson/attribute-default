@@ -1,5 +1,9 @@
-# Before `make install' is performed this script should be runnable with
-# `make test'. After `make install' it should work as `perl test.pl'
+
+# basic.t
+#
+# Tests out basic functionality of Attribute::Default. If
+# this works, Attribute::Default works, period.
+#
 # $Revision$
 
 use strict;
@@ -8,7 +12,7 @@ use lib '..';
 
 #########################
 
-use Test::More tests => 22;
+use Test::More tests => 24;
 use Attribute::Default;
 ok(1); # If we made it this far, we're ok.
 
@@ -22,7 +26,7 @@ ok(1); # If we made it this far, we're ok.
   no warnings 'uninitialized';
 
   our @EXPORT = qw(single double hash_vals method_hash single_defs double_defs);
-    
+
   sub single : Default('single value') {
     return "Here I am: " . join(',', @_);
   }
@@ -115,12 +119,29 @@ is(double_defs({item => 'hamlet'}, 'dane', [undef, 5]), 'hamlet dane 3 5');
 
   sub exp_meth_hash :method :Default({foo => exsub { _check_and_mult($_[0], 4); } }) {
     my $self = shift;
+    unless (@_ % 2 == 0) {
+      no warnings 'uninitialized';
+      Test::More::diag("Wrong number of arguments to 'exp_meth_hash'");
+      Test::More::diag("\@_: @_");
+      Test::More::diag("\$self: $self");
+      return;
+    }
     my %args = @_;
     return $args{'foo'};
   }
 
   sub exp_meth_array :method :Default(exsub{ _check_and_mult($_[0], 2) }) {
     return $_[1];
+  }
+
+  sub exp_meth_array_multip :method :Default('first', exsub { _check_and_mult($_[0], 2) } ) {
+    no warnings 'uninitialized';
+    return "$_[1] $_[2]";
+  }
+
+  sub exp_meth_array_multip2 :method :Default(exsub { _check_and_mult($_[0], 2) }, "second" ) {
+    no warnings 'uninitialized';
+    return "$_[1] $_[2]";
   }
 
   sub exp_meths :method :Defaults({bar => exsub { _check_and_mult($_[0], 3); }}) {
@@ -161,8 +182,10 @@ is(Attribute::Default::TestExpand::defaults_hash_expansion(), 6, "Expansion of d
   my $testobj = Attribute::Default::TestExpand->new();
  TODO: { 
     local $TODO = 'Passing $self to exsubs not implemented in Default()';
-    is($testobj->exp_meth_hash(), 6);
-    is($testobj->exp_meth_array(), 12);
+    is($testobj->exp_meth_hash(), 6, "Expand sub in hash for method");
+    is($testobj->exp_meth_array(), 12, "Expand sub in array for method");
+    is($testobj->exp_meth_array_multip(), "first 12", "Expand sub in array for method with two arguments");
+    is($testobj->exp_meth_array_multip2(), "12 second", "Expand sub in array for method with exp as second arg");
   }
  TODO: {
     local $TODO = 'Passing $self to exsubs not implemented in Defaults()';
