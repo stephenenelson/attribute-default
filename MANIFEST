@@ -5,4 +5,3 @@ MANIFEST
 README
 t/basic.t
 t/exsub.t
-t/internals.t
