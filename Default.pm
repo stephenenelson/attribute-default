@@ -198,15 +198,72 @@ sub _fill_arr {
   return @filled;
 }  
 
+##
+## _make_exsub_filter()
+##
+## Pulls all ExSubs out of the two-level defaults list
+## and creates a sub that will process them automatically.
+##
+sub _make_exsub_filter {
+  my ($defaults_list) = @_;
+  
+  my @root_subs = ();
+  my @arr_subs = ();
+  my @hash_subs = ();
+  foreach my $list_idx ($[ .. $#$defaults_list) {
+    ref $defaults_list->[$list_idx] or next;
+    my $def = $defaults_list->[$list_idx];
+
+    if (UNIVERSAL::isa($def, EXSUB_CLASS)) {
+      push(@root_subs, [$def, $list_idx]);
+      $defaults_list->[$list_idx] = undef;
+    }
+    elsif (ref $def eq 'ARRAY') {
+      foreach my $ref_idx ($[ .. $#$def) {
+	ref $def->[$ref_idx] or next;
+	my $defdef = $def->[$ref_idx];
+	UNIVERSAL::isa($defdef, EXSUB_CLASS) or next;
+	push( @arr_subs, [$defdef, $list_idx, $ref_idx]);
+	$def->[$ref_idx] = undef;
+      }
+    }
+    elsif (ref $def eq 'HASH') {
+      while (my ($key, $val) = each %$def) {
+	UNIVERSAL::isa($val, EXSUB_CLASS) or next;
+	push( @hash_subs, [$val, $list_idx, $key] );
+	$def->{$key} = undef;
+      }
+    }
+  }
+
+  return sub {
+    my ($args, @subargs) = @_;
+    foreach (@root_subs) {
+      $args->[$_->[1]] = $_->[0](@subargs);
+    }
+    foreach (@arr_subs) {
+      $args->[$_->[1]][$_->[2]] = $_->[0](@subargs);
+    }
+    foreach (@hash_subs) {
+      $args->[$_->[1]]{$_->[2]} = $_->[0](@subargs);
+    }
+    return @$args;
+  };
+}
+     
 
 sub Defaults : ATTR(CODE) {
   my ($glob, $orig, $attr, $defaults_list) = @_[1 .. 4];
 
   ref $defaults_list eq 'ARRAY' or $defaults_list = [$defaults_list];
+
+  my $exsub_filter = _make_exsub_filter($defaults_list);
   
   my $process_defaults = sub {
     my @args = @_;
-  ARG: foreach ($[ .. $#args ) {
+    
+  ARG: 
+    foreach ($[ .. $#args ) {
       if (! defined $args[$_]) {
 	$args[$_] = $defaults_list->[$_];
       }
@@ -226,9 +283,9 @@ sub Defaults : ATTR(CODE) {
     if ($#$defaults_list > $#_) {
       push(@args, @$defaults_list[scalar @_ .. $#$defaults_list]);
     }
-    return @args;
+    return $exsub_filter->(\@args, @args);
   };
-
+  
   if ( _is_method($orig) ) {
     *$glob = sub {
       @_ = ($_[0], $process_defaults->(@_[ ($[ + 1 ) .. $#_ ]));
