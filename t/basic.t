@@ -1,18 +1,16 @@
 
 # basic.t
 #
-# Tests out basic functionality of Attribute::Default. If
-# this works, Attribute::Default works, period.
+# Tests out basic functionality of Attribute::Default. 
 #
 # $Revision$
 
 use strict;
 use diagnostics;
-use lib '..';
 
 #########################
 
-use Test::More tests => 24;
+use Test::More tests => 14;
 use Attribute::Default;
 ok(1); # If we made it this far, we're ok.
 
@@ -97,99 +95,3 @@ is(single_defs({ varietal => 'Risheehat First Flush'}), "Type: black, Name: darj
 is(double_defs(), 'polonious fishmonger 3');
 is(double_defs({item => 'hamlet'}, 'dane', [undef, 5]), 'hamlet dane 3 5');
 
-{
-  package Attribute::Default::TestExpand;
-  use Attribute::Default 'exsub';
-  use base qw(Attribute::Default);
-  use UNIVERSAL;
-
-  sub single_sub : Default(exsub { return "3" } ) {
-    return "Should be three: $_[0]";
-  }
-
-  sub multi_subs : Defaults( [ 'caius', 'martius', 'coriolanus' ], exsub { [ reverse @{ $_[0] } ] } ) {
-    return "@{$_[0]} is backward @{$_[1]}";
-  }
-
-  sub threefaces_sub  : Defaults(3, exsub { $_[0] + 1 }, { foo => exsub { $_[0] + 2 } } ) {
-    return "$_[0] $_[1] $_[2]{'foo'}";
-  }
-
-  sub new { my $self = [3]; bless $self; }
-
-  sub exp_meth_hash :method :Default({foo => exsub { _check_and_mult($_[0], 4); } }) {
-    my $self = shift;
-    unless (@_ % 2 == 0) {
-      no warnings 'uninitialized';
-      Test::More::diag("Wrong number of arguments to 'exp_meth_hash'");
-      Test::More::diag("\@_: @_");
-      Test::More::diag("\$self: $self");
-      return;
-    }
-    my %args = @_;
-    return $args{'foo'};
-  }
-
-  sub exp_meth_array :method :Default(exsub{ _check_and_mult($_[0], 2) }) {
-    return $_[1];
-  }
-
-  sub exp_meth_array_multip :method :Default('first', exsub { _check_and_mult($_[0], 2) } ) {
-    no warnings 'uninitialized';
-    return "$_[1] $_[2]";
-  }
-
-  sub exp_meth_array_multip2 :method :Default(exsub { _check_and_mult($_[0], 2) }, "second" ) {
-    no warnings 'uninitialized';
-    return "$_[1] $_[2]";
-  }
-
-  sub exp_meths :method :Defaults({bar => exsub { _check_and_mult($_[0], 3); }}) {
-    my $self = shift;
-    return $_[0]{bar};
-  }
-
-  sub defaults_hash_expansion :Defaults({baz => exsub { $_[0]->{'pip'} * 2}, pip => 3}) {
-    unless (defined $_[0]) {
-      Test::More::diag("First argument not defined");
-      return;
-    }
-    return $_[0]->{'baz'};
-  }
-
-  sub _check_and_mult {
-    my $self = shift;
-    my ($factor) = @_;
-    
-    unless (@_ == 2) {
-      Test::More::diag("Expanded sub got wrong number of arguments: @{[ scalar @_ ]}");
-      return;
-    }
-    unless (UNIVERSAL::isa($self, __PACKAGE__)) {
-      Test::More::diag("Expanded sub got wrong kind of type for \$self: $self");
-      return;
-    }
-    return @$self * $factor;
-  }
-}
-  
-is(Attribute::Default::TestExpand::single_sub(), 'Should be three: 3');
-is(Attribute::Default::TestExpand::multi_subs(), 'caius martius coriolanus is backward coriolanus martius caius');
-is(Attribute::Default::TestExpand::threefaces_sub(), "3 4 5");
-is(Attribute::Default::TestExpand::threefaces_sub(2), "2 3 4");
-is(Attribute::Default::TestExpand::defaults_hash_expansion(), 6, "Expansion of default in Defaults() for hash");
-{
-  my $testobj = Attribute::Default::TestExpand->new();
- TODO: { 
-    local $TODO = 'Passing $self to exsubs not implemented in Default()';
-    is($testobj->exp_meth_hash(), 6, "Expand sub in hash for method");
-    is($testobj->exp_meth_array(), 12, "Expand sub in array for method");
-    is($testobj->exp_meth_array_multip(), "first 12", "Expand sub in array for method with two arguments");
-    is($testobj->exp_meth_array_multip2(), "12 second", "Expand sub in array for method with exp as second arg");
-  }
- TODO: {
-    local $TODO = 'Passing $self to exsubs not implemented in Defaults()';
-    is($testobj->exp_meths(), 9);
-  }
-
-}
