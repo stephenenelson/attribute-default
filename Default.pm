@@ -7,9 +7,6 @@ package Attribute::Default;
 ####
 #### See perldoc for details.
 ####
-#### Many comments in this file appear bewildered because they're my
-#### attempt to understand my own code after a hiatus of eight months.
-####
 
 use 5.006;
 use strict;
@@ -54,9 +51,8 @@ sub import {
 ##
 ## exsub()
 ##
-## One specifies an expanding subroutine for Default by
-## saying 'exsub { YOUR CODE HERE }'. It's interpolated
-## at runtime.
+## One specifies an expanding subroutine for Default by saying 'exsub
+## { YOUR CODE HERE }'. It's run and used as a default at runtime.
 ##
 ## Exsubs are marked by being blessed into EXSUB_CLASS.
 ##
@@ -126,15 +122,14 @@ sub _find_exsubs_in_array {
 sub _get_fill {
   my ($defaults) = @_;
 
-  unless ( ( ref $defaults eq 'ARRAY' ) || ( ref $defaults eq 'HASH' ) ) {
-    $defaults = [$defaults];
-  }
-
   if (ref $defaults eq 'ARRAY') {
     return _fill_array_sub($defaults);
   }
   elsif(ref $defaults eq 'HASH') {
     return _fill_hash_sub($defaults);
+  }
+  else {
+    return _fill_array_sub([$defaults]);
   }
 }
 
@@ -167,12 +162,11 @@ sub _fill_array_sub {
 }
 
 ##
-## _fill_hash_sub()
+## _find_exsubs_in_hash()
 ##
-## Returns the appropriate preprocessor to fill a hash
-## with defaults.
+## Returns the exsubs in a hash of defaults.
 ##
-sub _fill_hash_sub {
+sub _find_exsubs_in_hash {
   my ($defaults) = @_;
 
   my %exsubs = ();
@@ -181,7 +175,19 @@ sub _fill_hash_sub {
     $exsubs{$key} = $value;
     $defaults->{$key} = undef;
   }
-  if (%exsubs) {
+  return %exsubs;
+}
+
+##
+## _fill_hash_sub()
+##
+## Returns the appropriate preprocessor to fill a hash
+## with defaults.
+##
+sub _fill_hash_sub {
+  my ($defaults) = @_;
+
+  if ( my %exsubs = _find_exsubs_in_hash($defaults) ) {
     return sub {
       my @filled = _fill_hash($defaults, @_);
       my %processed = @filled;
@@ -218,6 +224,7 @@ sub _get_sub {
       goto $orig;
     };
   }
+
 }
     
 
@@ -553,6 +560,8 @@ Here, if $time is undef, it gets filled in with the results of
 executing get_time().
 
 Subroutine expansion is not yet implemented for the C<Defaults()> attribute.
+
+A "die" in an exsub may have an inaccurate line number appended.
 
 
 =head1 BUGS
