@@ -92,7 +92,7 @@ use Attribute::Default;
       Test::More::diag("Expanded sub got wrong kind of type for \$self: $self");
       return;
     }
-    return @$self * $factor;
+    return $self->[0] * $factor;
   }
 }
   
@@ -107,13 +107,10 @@ is(Attribute::Default::TestExpand::exp_hash(bar => 4, foo => 'mangel-wurzel'), '
 is(Attribute::Default::TestExpand::defaults_hash_expansion(), 6, "Expansion of default in Defaults() for hash");
 {
   my $testobj = Attribute::Default::TestExpand->new();
- TODO: { 
-    local $TODO = 'Passing $self to exsubs not implemented in Default()';
-    is($testobj->exp_meth_hash(), 6, "Expand sub in hash for method");
-    is($testobj->exp_meth_array(), 12, "Expand sub in array for method");
-    is($testobj->exp_meth_array_multip(), "first 12", "Expand sub in array for method with two arguments");
-    is($testobj->exp_meth_array_multip2(), "12 second", "Expand sub in array for method with exp as second arg");
-  }
+  is($testobj->exp_meth_hash(), 12, "Expand sub in hash for method");
+  is($testobj->exp_meth_array(), 6, "Expand sub in array for method");
+  is($testobj->exp_meth_array_multip(), "first 6", "Expand sub in array for method with two arguments");
+  is($testobj->exp_meth_array_multip2(), "6 second", "Expand sub in array for method with exp as second arg");
  TODO: {
     local $TODO = 'Passing $self to exsubs not implemented in Defaults()';
     is($testobj->exp_meths(), 9);
