@@ -75,6 +75,12 @@ Attribute::Default - Perl extension to assign default values to subroutine argum
      print "My name is $name\n";
   }
 
+  # Make age default to 14, sex default to male
+  sub vitals : default({age => 14, sex => 'male'}) {
+     my %vitals = @_;
+     print "I'm $vitals{'sex'}, $vitals{'age'} years old, and am from $vitals{'location'}\n";
+  }
+
 
 =head1 DESCRIPTION
 
