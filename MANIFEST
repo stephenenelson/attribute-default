@@ -3,4 +3,4 @@ Default.pm
 Makefile.PL
 MANIFEST
 README
-test.pl
+t/basic.t
