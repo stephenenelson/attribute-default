@@ -22,7 +22,7 @@ our $VERSION = do { my @r = (q$Revision$ =~ /\d+/g); sprintf "%d."."%02d" x $#r,
 
 sub Default : ATTR(CODE) {
     my ($glob, $attr, $defaults) = @_[1,3,4];
-
+    
     ref $defaults or $defaults = [$defaults];
 
     my $orig = *$glob{CODE};
@@ -36,13 +36,37 @@ sub Default : ATTR(CODE) {
 	*$glob = sub {
 	    @_ = _fill_hash($defaults, @_);
 	    goto $orig;
-	}
+	};
     }
     else {
 	confess "Argument to attribute '$attr' must be an arrayref, scalar, or hashref; stopped";
     }
 
 }
+
+sub DefaultMethod : ATTR(CODE) {
+  my ($glob, $attr, $defaults) = @_[1,3,4];
+
+  my $orig = *$glob{CODE};
+  ref $defaults or $defaults = [$defaults];
+  if (ref $defaults eq 'ARRAY') {
+    *$glob = sub {
+      @_ = ( $_[0], _fill_arr($defaults, @_[ $[ + 1 .. $#_ ]) );
+      goto $orig;
+    };
+  }
+  elsif (ref $defaults eq 'HASH') {
+    *$glob = sub {
+      @_ = ($_[0], _fill_hash($defaults, @_[ $[ + 1 .. $#_ ]));
+      goto $orig;
+    };
+  }
+  else {
+    confess "Argument to attribute '$attr' must be an arrayref, scalar, or hashref; stopped";
+  }
+}
+
+
 
 ##
 ## _fill_hash()
