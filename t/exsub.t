@@ -10,7 +10,7 @@ use diagnostics;
 
 ########################
 
-use Test::More tests => 14;
+use Test::More tests => 16;
 use Attribute::Default;
 
 {
@@ -80,6 +80,17 @@ use Attribute::Default;
     return $_[0]->{'baz'};
   }
 
+  # Defaults to 64*2=128
+  sub defaults_interref_expansion :Defaults({foo => 23, bar => 64}, [ 2, exsub { $_[0]{'bar'} * $_[1][0]}], 3)
+    {
+      return $_[1][1];
+    }
+
+  # Defaults to 3*6=18
+  sub defaults_interref_expansion_meth :method :Defaults({op1 => exsub { _check_and_mult($_[0], $_[3]{'baz'})}, op2 => 0}, 22, { baz => 6, bap => 33 }) {
+    return $_[1]{'op1'};
+  }
+
   sub _check_and_mult {
     my $self = shift;
     my ($factor) = @_;
@@ -105,6 +116,7 @@ is(Attribute::Default::TestExpand::exp_hash(), "foo: 14 bar: 2", 'Default hash w
 is(Attribute::Default::TestExpand::exp_hash(bar => 3), "foo: 21 bar: 3", 'Default hash with exsub referring to overridden');
 is(Attribute::Default::TestExpand::exp_hash(bar => 4, foo => 'mangel-wurzel'), 'foo: mangel-wurzel bar: 4', 'Default hash with exsub overridden');
 is(Attribute::Default::TestExpand::defaults_hash_expansion(), 6, "Expansion of default in Defaults() for hash");
+is(Attribute::Default::TestExpand::defaults_interref_expansion(), 128, "Exsub in hashref using argument in arrayref");
 {
   my $testobj = Attribute::Default::TestExpand->new();
   is($testobj->exp_meth_hash(), 12, "Expand sub in hash for method");
@@ -113,7 +125,8 @@ is(Attribute::Default::TestExpand::defaults_hash_expansion(), 6, "Expansion of d
   is($testobj->exp_meth_array_multip2(), "6 second", "Expand sub in array for method with exp as second arg");
  TODO: {
     local $TODO = 'Passing $self to exsubs not implemented in Defaults()';
-    is($testobj->exp_meths(), 9);
+    is($testobj->exp_meths(), 9, "Exsub method in Defaults()");
+    is($testobj->defaults_interref_expansion_meth(), 18, "Exsub method in Defaults referring to other reference argument");
   }
 
 }
