@@ -89,7 +89,37 @@ sub _fill_arr {
 sub Defaults : ATTR(CODE) {
   my ($glob, $attr, $defaults_list) = @_[1,3,4];
 
+  ref $defaults_list eq 'ARRAY' or $defaults_list = [$defaults_list];
   
+  my $orig = *$glob{CODE};
+  *$glob = sub {
+    my @args = @_;
+    ARG: foreach ($[ .. $#args ) {
+      if (! defined $args[$_]) {
+	$args[$_] = $defaults_list->[$_];
+      }
+      elsif (ref $args[$_]) {
+	if (ref $args[$_] eq 'HASH') {
+	  ref $defaults_list->[$_] eq 'HASH' or next ARG;
+	  $args[$_] = { _fill_hash( $defaults_list->[$_], %{$args[$_]} ) };
+	}
+	elsif (ref $args[$_] eq 'ARRAY') {
+	  ref $defaults_list->[$_] eq 'ARRAY' or next ARG;
+	  $args[$_] = [ _fill_arr($defaults_list->[$_], @{ $args[$_]}) ];
+	}
+	# Otherwise, it's a kind of ref we don't handle... do nothing
+	else { }
+      }
+    }
+    if ($#$defaults_list > $#_) {
+      push(@args, @$defaults_list[scalar @_ .. $#$defaults_list]);
+    }
+    @_ = @args;
+    goto $orig;
+  };
+
+
+      
 }
 
 1;
