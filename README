@@ -1,5 +1,5 @@
-Attribute/Default version 0.01
-==============================
+Attribute/Default
+=================
 
 You've probably seen it a thousand times: a subroutine begins with a
 complex series of "defined($blah) or $blah = 'fribble'" statements
@@ -9,11 +9,10 @@ perl 5 had a simple mechanism to provide default values to
 subroutines.
 
 This module attempts to fill that gap. It allows you to declare your
-subroutines with a 'default' attribute which you can use to specify
-whatever default values your subroutine should have, and automatically
-fills them in if they are undefined or not provided. It works on
-simple scalar arguments, list arguments, and hash-style named
-arguments.
+subroutines with an attribute which you can use to specify whatever
+default values your subroutine should have, and automatically fills
+them in if they are undefined or not provided. It works on simple
+scalar arguments, list arguments, references, and hash-style named arguments.
 
 INSTALLATION
 
