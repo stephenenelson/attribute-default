@@ -17,7 +17,7 @@ use base 'Attribute::Handlers';
 
 use Carp;
 
-our $VERSION = $VERSION = do { my @r = (q$Revision$ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+our $VERSION = do { my @r = (q$Revision$ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
 
 sub default : ATTR(CODE) {
