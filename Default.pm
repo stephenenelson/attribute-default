@@ -167,7 +167,7 @@ sub _fill_array_sub {
 	       });
     }
   else {
-    return ( $fill_sub, sub { return $_[0]} );
+    return ($fill_sub, undef);
   }
 }
 
@@ -233,7 +233,7 @@ sub _fill_hash_sub {
 	    });
   }
   else {
-    return ( $fill_sub, sub { return $_[0] } );
+    return ( $fill_sub, undef );
   }
 }
 
@@ -253,19 +253,36 @@ sub _get_sub {
   my ($fill_sub, $exsub_sub) = _get_fill($defaults);
 
   if ( _is_method($orig) ) {
-    return sub {
-      my ($self, @args) = @_;
-      my @filled = &$fill_sub(@args);
-      @_ = ($self, @{ &$exsub_sub( \@filled, [$self, @filled] ) } );
-      goto $orig;
-    };
+      if (defined $exsub_sub) {
+	  return sub {
+	      my ($self, @args) = @_;
+	      my @filled = &$fill_sub(@args);
+	      @_ = ($self, @{ &$exsub_sub( \@filled, [$self, @filled] ) } );
+	      goto $orig;
+	  };
+      }
+      else {
+	  return sub {
+	      my ($self, @args) = @_;
+	      @_ = ($self, &$fill_sub(@args));
+	      goto $orig;
+	  };
+      }
   }
   else {
-    return sub {
-      my @filled = &$fill_sub(@_);
-      @_ = @{ &$exsub_sub( \@filled, \@filled ) };
-      goto $orig;
-    };
+      if (defined $exsub_sub) {
+	  return sub {
+	      my @filled = &$fill_sub(@_);
+	      @_ = @{ &$exsub_sub( \@filled, \@filled ) };
+	      goto $orig;
+	  };
+      }
+      else {
+	  return sub {
+	      @_ = &$fill_sub(@_);
+	      goto $orig;
+	  };
+      }
   }
 }
 
