@@ -12,6 +12,7 @@ use 5.006;
 use strict;
 use warnings;
 no warnings 'redefine';
+use attributes;
 
 use base 'Attribute::Handlers';
 
@@ -38,8 +39,21 @@ sub _sub {
 }
 
 sub Default : ATTR(CODE) {
-    my ($glob, $attr, $defaults, $orig) = _get_args(@_);
-
+  my ($glob, $attr, $defaults, $orig) = _get_args(@_);
+  
+  if ( grep({ $_ eq 'method'} attributes::get($orig)) ) {
+    *$glob = _sub($attr, {
+			  ARRAY => sub {
+			    @_ = ( $_[0], _fill_arr($defaults, @_[ $[ + 1 .. $#_ ]) );
+			    goto $orig;
+			  },
+			  HASH => sub {
+			    @_ = ($_[0], _fill_hash($defaults, @_[ $[ + 1 .. $#_ ]));
+			    goto $orig;
+			  },
+			 }, $defaults);
+  }
+  else {
     *$glob = _sub($attr, {
 			  ARRAY => sub {
 			    @_ = _fill_arr($defaults, @_);
@@ -51,21 +65,6 @@ sub Default : ATTR(CODE) {
 			  },
 			 }, $defaults);
   }
-
-sub DefaultMethod : ATTR(CODE) {
-  my ($glob, $attr, $defaults, $orig) = _get_args(@_);
-
-  
-  *$glob = _sub($attr, {
-		 ARRAY => sub {
-		   @_ = ( $_[0], _fill_arr($defaults, @_[ $[ + 1 .. $#_ ]) );
-		   goto $orig;
-		 },
-		 HASH => sub {
-		   @_ = ($_[0], _fill_hash($defaults, @_[ $[ + 1 .. $#_ ]));
-		   goto $orig;
-		 },
-		}, $defaults);
 }
 
 
@@ -180,17 +179,21 @@ Attribute::Default - Perl extension to assign default values to subroutine argum
   package MyPackage;
   use base 'Attribute::Default';
 
-  # Makes person's name default to "jimmy"
-  sub introduce : Default("jimmy") {
+  # Makes person's name default to "Jimmy"
+  sub introduce : Default("Jimmy") {
      my ($name) = @_;
      print "My name is $name\n";
   }
+  # prints "My name is Jimmy"
+  introduce();
 
   # Make age default to 14, sex default to male
   sub vitals : Default({age => 14, sex => 'male'}) {
      my %vitals = @_;
      print "I'm $vitals{'sex'}, $vitals{'age'} years old, and am from $vitals{'location'}\n";
   }
+  # Prints "I'm male, 14 years old, and am from Schenectady"
+  vitals(location => 'Schenectady');
 
 
 =head1 DESCRIPTION
@@ -262,12 +265,6 @@ C<Default()>, like so:
   # Prints "Albert found a rhinoceros that followed Albert home"...
   found_pet(name => 'Albert Andreas Armadillo', pet => 'rhinoceros');
 
-=head2 DEFAULTING METHOD ARGUMENTS
-
-If you are performing object-oriented programming, you can use the C<DefaultMethod()> attribute. C<DefaultMethod>
-ignores the first argument (in other words, the 'type' or 'self' argument), so you can use named parameters with
-a constructor or method just like the C<Default()> attribute.
-
 =head2 DEFAULTING REFERENCES
 
 If you prefer to pass around your arguments as references, rather than
@@ -293,6 +290,40 @@ If an argument reference's type does not match an expected default
 type, then it is passed along without any attempt at defaulting.
 
 
+=head2 DEFAULTING METHOD ARGUMENTS
+
+If you are performing object-oriented programming, you can use the
+C<:method> attribute to mark your function as a method. The
+C<Default()> and C<Defaults()> attributes ignore the first argument (in
+other words, the 'type' or 'self' argument) for functions marked as
+methods. So you can use C<Default()> and C<Defaults()> just as for regular functions, like so:
+
+ package Thing;
+ use base 'Noun';
+
+ sub new :method :Default({ word => 'train' }) {
+    my $type = shift;
+    my %args = @_;
+
+    my $self = [ $args->{'word'} ];
+    bless $self, $type;
+ }
+
+ sub make_sentence :method :Default('to another state') {
+    my $self = shift;
+    my ($phrase) = @_;
+
+    return "I took a " . $self->[0] . " $phrase"
+ }
+
+ # prints "I took a train to another state"
+ my $train = Noun->new();
+ print $train->make_sentence();
+
+ # prints "I took a ferry to the Statue of Liberty"
+ my $ferry = Noun->new( word => 'ferry' );
+ print $ferry->make_sentence('to the Statue of Liberty');
+
 =head1 BUGS
 
 An alpha module; may change. Based on (The) Damian Conway's
@@ -301,6 +332,10 @@ Attribute::Handlers, so shares whatever bugs may be found there.
 =head1 AUTHOR
 
 Stephen Nelson, E<lt>steven@jubal.comE<gt>
+
+=head1 SPECIAL THANKS TO
+
+Randy Ray, jeffa, and my brother and sister monks at www.perlmonks.org.
 
 =head1 SEE ALSO
 

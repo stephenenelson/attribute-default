@@ -39,7 +39,7 @@ ok(1); # If we made it this far, we're ok.
     return "Val 1 is $args{val1}, val 2 is $args{val2}";
   }
 
-  sub method_hash : DefaultMethod({ falstaff => 'Plump Jack' }) {
+  sub method_hash :method : Default({ falstaff => 'Plump Jack' }) {
     my $self = shift;
     my %args = @_;
     return "Banish $args{falstaff}, and banish $self.";
