@@ -7,7 +7,7 @@ use lib '..';
 #########################
 
 use Test;
-BEGIN { plan tests => 17, todo => [17] };
+BEGIN { plan tests => 17 };
 use Attribute::Default;
 ok(1); # If we made it this far, we're ok.
 
@@ -98,13 +98,12 @@ ok(double_defs({item => 'hamlet'}, 'dane', [undef, 5]), 'hamlet dane 3 5');
   }
 
   sub multi_subs : Defaults( [ 'caius', 'martius', 'coriolanus' ], exsub { [ reverse @{ $_[0] } ] } ) {
-    eval { return "@{$_[0]} is backward @{$_[1]}"; };
-    warn $@ if $@;
+    return "@{$_[0]} is backward @{$_[1]}";
   }
 }
   
 ok(Attribute::Default::TestExpand::single_sub(), 'Should be three: 3');
-ok(Attribute::Default::TestExpand::multi_subs(), 'caiusmartiuscoriolanus backwards is coriolanusmartiuscaius');
+ok(Attribute::Default::TestExpand::multi_subs(), 'caius martius coriolanus is backward coriolanus martius caius');
 
 
 
