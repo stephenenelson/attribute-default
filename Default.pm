@@ -331,11 +331,6 @@ sub _fill_hash {
 ## Returns:
 ##    list -- Arguments with defaults filled in
 ##
-## Implementation note: We go through the list
-## a second time to pull out exsubs. This should somehow
-## be optimized out, and possibly not happen unless
-## exsub has been imported.
-##
 sub _fill_arr {
   my $defaults = shift;
   my @filled = ();
@@ -350,108 +345,119 @@ sub _fill_arr {
 }
 
 ##
-## _make_exsub_filter()
+## Defaults()
 ##
-## Pulls all ExSubs out of the two-level defaults list
-## and creates a sub that will process them automatically.
+## Arguments:
+##   GLOB: typeglobref -- Typeglob of name of sub to wrap
+##   ORIG: coderef -- Ref to original sub
+##   ATTR: string -- name of the attribute (Always 'Defaults' right now)
+##   DEFAULTS_LIST -- list of default arguments
 ##
-sub _make_exsub_filter {
-  my ($defaults_list) = @_;
-  
-  my @root_subs = ();
-  my @arr_subs = ();
-  my @hash_subs = ();
-  foreach my $list_idx ($[ .. $#$defaults_list) {
-    ref $defaults_list->[$list_idx] or next;
-    my $def = $defaults_list->[$list_idx];
+## Defaults() creates a wrapper subroutine that does a two-layer check on
+## incoming arguments. It first processes the toplevel arguments as an
+## array, then processes any reference defaults.
+##
+## If the default and the argument are of differing reference types, the
+## argument is passed through unscathed.
+##
+## An undef of a reference type is treated like someone passing an empty
+## array or hash.
+##
+## Implementation note: Using huge numbers of closures like I am may
+## waste too much memory. It's a hell of a lot cleaner than what I was doing
+## before, though.
+##
+##
+sub Defaults : ATTR(CODE) {
+  my ($glob, $orig, $attr, $defaults) = @_[1 .. 4];
+  (ref $defaults) && (ref $defaults eq 'ARRAY') or $defaults = [$defaults];
 
-    if (UNIVERSAL::isa($def, EXSUB_CLASS)) {
-      push(@root_subs, [$def, $list_idx]);
-      $defaults_list->[$list_idx] = undef;
+  my @ref_defaults = ();
+  my @ref_exsubs = ();
+  my @toplevel_defaults = ();
+
+  foreach ($[ .. $#$defaults) {
+    if ( (my $type = ref $$defaults[$_]) && (! UNIVERSAL::isa($$defaults[$_], EXSUB_CLASS) ) ) {
+      my ($fill_sub, $fill_exsub) = _get_fill($$defaults[$_]);
+      push @ref_defaults, [$_, $type, $fill_sub];
+      defined $fill_exsub and push @ref_exsubs, [$_, $type, $fill_exsub];
     }
-    elsif (ref $def eq 'ARRAY') {
-      foreach my $ref_idx ($[ .. $#$def) {
-	ref $def->[$ref_idx] or next;
-	my $defdef = $def->[$ref_idx];
-	UNIVERSAL::isa($defdef, EXSUB_CLASS) or next;
-	push( @arr_subs, [$defdef, $list_idx, $ref_idx]);
-	$def->[$ref_idx] = undef;
-      }
-    }
-    elsif (ref $def eq 'HASH') {
-      while (my ($key, $val) = each %$def) {
-	UNIVERSAL::isa($val, EXSUB_CLASS) or next;
-	push( @hash_subs, [$val, $list_idx, $key] );
-	$def->{$key} = undef;
-      }
+    else {
+      $toplevel_defaults[$_] = $$defaults[$_];
     }
   }
 
-  return sub {
-    my ($args, @subargs) = @_;
-    foreach (@root_subs) {
-      $args->[$_->[1]] = $_->[0](@subargs);
-    }
-    foreach (@arr_subs) {
-      $args->[$_->[1]][$_->[2]] = $_->[0](@subargs);
-    }
-    foreach (@hash_subs) {
-      $args->[$_->[1]]{$_->[2]} = $_->[0](@subargs);
-    }
-    return @$args;
-  };
-}
+  my ($toplevel_sub, $toplevel_exsub) = _fill_array_sub(\@toplevel_defaults);
 
-sub Defaults : ATTR(CODE) {
-  my ($glob, $orig, $attr, $defaults_list) = @_[1 .. 4];
-
-  ref $defaults_list eq 'ARRAY' or $defaults_list = [$defaults_list];
-
-  my $exsub_filter = _make_exsub_filter($defaults_list);
-  
-  my $process_defaults = sub {
-    my @args = @_;
-    
-  ARG: 
-    foreach ($[ .. $#args ) {
-      if (! defined $args[$_]) {
-	$args[$_] = $defaults_list->[$_];
-      }
-      elsif (ref $args[$_]) {
-	if (ref $args[$_] eq 'HASH') {
-	  ref $defaults_list->[$_] eq 'HASH' or next ARG;
-	  $args[$_] = { _fill_hash( $defaults_list->[$_], %{$args[$_]} ) };
-	}
-	elsif (ref $args[$_] eq 'ARRAY') {
-	  ref $defaults_list->[$_] eq 'ARRAY' or next ARG;
-	  $args[$_] = [ _fill_arr($defaults_list->[$_], @{ $args[$_]}) ];
-	}
-	# Otherwise, it's a kind of ref we don't handle... do nothing
-	else { }
-      }
-    }
-    if ($#$defaults_list > $#_) {
-      push(@args, @$defaults_list[scalar @_ .. $#$defaults_list]);
-    }
-    return $exsub_filter->(\@args, @args);
-  };
-  
   if ( _is_method($orig) ) {
-    *$glob = sub {
-      @_ = ($_[0], $process_defaults->(@_[ ($[ + 1 ) .. $#_ ]));
-      goto $orig;
-    };
+    *$glob = 
+sub {
+  my @filled = &$toplevel_sub(@_[ ($[ + 1) .. $#_ ]);
+  _fill_sublevel(\@filled, \@ref_defaults);
+  defined ($toplevel_exsub) && &$toplevel_exsub(\@filled, [$_[0], @filled]);
+  _fill_exsubs(\@filled, \@ref_exsubs, [$_[0], @filled]);
+  @_ = ($_[0], @filled);
+  goto $orig;
+}
   }
   else {
-    *$glob = sub {
-      @_ = $process_defaults->(@_);
-      goto $orig;
-    };
-  }
+      *$glob =
+ sub {
+	  
+	  # First, fill toplevel arguments
+	  my @filled = &$toplevel_sub(@_);
+	  
+	  # Next, fill all sublevel arguments
+	  _fill_sublevel(\@filled, \@ref_defaults);
 
-     
+	  defined ($toplevel_exsub) && &$toplevel_exsub(\@filled, \@filled);
+	  _fill_exsubs(\@filled, \@ref_exsubs, \@filled);
+	  @_ = @filled;
+	  goto $orig;
+      }
+	  
+  }      
+      
+
 }
 
+sub _fill_exsubs {
+  my ($args, $ref_exsubs, $exsub_args) = @_;
+
+  foreach (@$ref_exsubs) {
+    my ($idx, $type, $exsub_sub) = @$_;
+    ($type eq ref $$args[$idx]) || (! defined $$args[$idx]) or next;
+    if ($type eq 'HASH') {
+      $$args[$idx] = { @{ &$exsub_sub( [%{ $$args[$idx] } ], $exsub_args  ) } };
+    }
+    elsif ($type eq 'ARRAY') {
+      $$args[$idx] = &$exsub_sub( $$args[$idx], $exsub_args );
+    }
+    else {
+      die "Exsub expansion cannot handle '$type'";
+    }
+  }
+}
+
+
+
+sub _fill_sublevel {
+  my ($filled, $ref_defaults) = @_;
+
+  foreach (@$ref_defaults) {
+    my ($idx, $type, $fill_sub) = @$_;
+    ($type eq ref $$filled[$idx]) || (! defined $$filled[$idx]) or next;
+    if ($type eq 'HASH') {
+      $$filled[$idx] = { &$fill_sub( defined $$filled[$idx] ? %{ $$filled[$idx] } : () ) };
+    } elsif ($type eq 'ARRAY') {
+      $$filled[$idx] = [ &$fill_sub( defined $$filled[$idx] ? @{ $$filled[$idx] } : () ) ];
+    } else {
+      die "I don't know what to do with '$type'";
+    }
+
+  }
+
+}
 
 1;
 __END__

@@ -5,3 +5,4 @@ MANIFEST
 README
 t/basic.t
 t/exsub.t
+t/exsub_defaults.t
