@@ -304,7 +304,7 @@ Stephen Nelson, E<lt>steven@jubal.comE<gt>
 
 =head1 SEE ALSO
 
-L<Attribute::Handlers>.
+L<Attribute::Handlers>, L<Sub::NamedParams>.
 
 =cut
 
