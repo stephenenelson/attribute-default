@@ -26,14 +26,17 @@ our @EXPORT_OK = qw(exsub);
 use constant EXSUB_CLASS => ( __PACKAGE__ . '::ExSub' );
 
 sub import {
-  my ($class, $subname) = @_;
+  my $class = shift;
+  my ($subname) = @_;
   my $callpkg = (caller())[0];
 
   if (defined($subname) && $subname eq 'exsub') {
     no strict 'refs';
     *{ "${callpkg}::exsub" } = \&exsub;
-    *{ "Attribute::Handlers::exsub" } = \&exsub;
-  } 
+  }
+  else {
+    SUPER->import(@_);
+  }
     
 }
 
@@ -194,6 +197,7 @@ sub _fill_arr {
   
   return @filled;
 }  
+
 
 sub Defaults : ATTR(CODE) {
   my ($glob, $orig, $attr, $defaults_list) = @_[1 .. 4];
@@ -399,6 +403,26 @@ methods. So you can use C<Default()> and C<Defaults()> just as for regular funct
  my $ferry = Noun->new( word => 'ferry' );
  print $ferry->make_sentence('to the Statue of Liberty');
 
+=head2 EXPANDING SUBROUTINES
+
+Sometimes it's not possible to know in advance what the default should
+be for a particular argument. No problem! You can pass an expanding
+subroutine to the C<Default()> attribute using C<exsub>, like so:
+
+ use Attribute::Default 'exsub';
+ use base 'Attribute::Default';
+
+ sub log_action : Default( undef, exsub { get_time(); } ) {
+    my ($verb, $time) = @_;
+    print "$verb! That's what's happening at $time\n";
+ }
+
+Here, if $time is undef, it gets filled in with the results of
+executing get_time().
+
+Subroutine expansion is not yet implemented for the C<Defaults()> attribute.
+
+
 =head1 BUGS
 
 An alpha module; may change. Based on (The) Damian Conway's
@@ -414,7 +438,7 @@ Randy Ray, Jeff Anderson, and my brother and sister monks at www.perlmonks.org.
 
 =head1 SEE ALSO
 
-L<Attribute::Handlers>, L<Sub::NamedParams>.
+L<Attribute::Handlers>, L<Sub::NamedParams>, L<attributes>.
 
 =cut
 
