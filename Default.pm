@@ -28,26 +28,13 @@ sub Default : ATTR(CODE) {
     my $orig = *$glob{CODE};
     if (ref $defaults eq 'ARRAY') {
 	*$glob = sub {
-	    my @filled = ();
-	    foreach (0 .. $#_) {
-		push @filled, ( defined( $_[$_] ) ? $_[$_] : $defaults->[$_] );
-	    }
-	    if ($#$defaults > $#_) {
-		push(@filled, @$defaults[scalar @_ .. $#$defaults]);
-	    }
-	    
-	    @_ = @filled;
-	    
-	    goto $orig;
+	  @_ = _fill_arr($defaults, @_);
+	  goto $orig;
 	};
     }
     elsif (ref $defaults eq 'HASH') {
 	*$glob = sub {
-	    my %args = @_;
-	    while (my ($key, $value) = each %$defaults) {
-	      defined($args{$key}) or $args{$key} = $value;
-	    }
-	    @_ = %args;
+	    @_ = _fill_hash($defaults, @_);
 	    goto $orig;
 	}
     }
@@ -55,6 +42,54 @@ sub Default : ATTR(CODE) {
 	confess "Argument to attribute '$attr' must be an arrayref, scalar, or hashref; stopped";
     }
 
+}
+
+##
+## _fill_hash()
+##
+## Arguments:
+##    DEFAULTS: hashref -- Hash table of default arguments
+##    ARGS: list -- The arguments to be filtered
+##
+## Returns:
+##    list -- Arguments with defaults filled in
+##
+sub _fill_hash {
+  my $defaults = shift;
+  my %args = @_;
+  while (my ($key, $value) = each %$defaults) {
+    defined($args{$key}) or $args{$key} = $value;
+  }
+  return %args;
+}
+
+##
+## _fill_arr()
+##
+## Arguments:
+##    DEFAULTS: arrayref -- Array of default arguments
+##    ARGS: list -- The arguments to be filtered
+##
+## Returns:
+##    list -- Arguments with defaults filled in
+##
+sub _fill_arr {
+  my $defaults = shift;
+  my @filled = ();
+  foreach (0 .. $#_) {
+    push @filled, ( defined( $_[$_] ) ? $_[$_] : $defaults->[$_] );
+  }
+  if ($#$defaults > $#_) {
+    push(@filled, @$defaults[scalar @_ .. $#$defaults]);
+  }
+  
+  return @filled;
+}  
+
+sub Defaults : ATTR(CODE) {
+  my ($glob, $attr, $defaults_list) = @_[1,3,4];
+
+  
 }
 
 1;
