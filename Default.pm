@@ -7,6 +7,9 @@ package Attribute::Default;
 ####
 #### See perldoc for details.
 ####
+#### Many comments in this file appear bewildered because they're my
+#### attempt to understand my own code after a hiatus of eight months.
+####
 
 use 5.006;
 use strict;
@@ -25,6 +28,14 @@ our @EXPORT_OK = qw(exsub);
 
 use constant EXSUB_CLASS => ( __PACKAGE__ . '::ExSub' );
 
+##
+## import()
+##
+## Apparently I found it necessary to export 'exsub'
+## by hand. I don't know why. Eventually, it may
+## be necessary to turn on some specific functionality
+## once 'exsub' is exported.
+##
 sub import {
   my $class = shift;
   my ($subname) = @_;
@@ -40,12 +51,28 @@ sub import {
     
 }
 
+##
+## exsub()
+##
+## One specifies an expanding subroutine for Default by
+## saying 'exsub { YOUR CODE HERE }'. It's interpolated
+## at runtime.
+##
+## Exsubs are marked by being blessed into EXSUB_CLASS.
+##
 sub exsub(&) {
   my ($sub) = @_;
   ref $sub eq 'CODE' or die "Sub '$sub' can't be blessed: must be CODE ref";
   bless $sub, EXSUB_CLASS;
 }
 
+##
+## _get_args()
+##
+## Fairly close to no-op code. Discards the needless
+## arguments I get from Attribute::Handlers stuff
+## and puts single default arguments into array refs.
+##
 sub _get_args {
   my ($glob, $orig, $attr, $defaults) = @_[1 .. 4];
   (ref $defaults && ref $defaults ne 'CODE') or $defaults = [$defaults];
@@ -69,6 +96,29 @@ sub _is_method {
 }
 
 ##
+## _find_exsubs_in_array()
+##
+## Arguments:
+##    DEFAULTS -- arrayref : The list of default arguments
+##
+## Returns:
+##    Hashtable: list of exsubs we found and their array indices
+##
+sub _find_exsubs_in_array {
+  my ($defaults) = @_;
+  
+  my %exsubs = ();
+
+  for ( $[ .. $#$defaults ) {
+    (UNIVERSAL::isa( $defaults->[$_], EXSUB_CLASS )) or next;
+    $exsubs{$_} = $defaults->[$_];
+    $defaults->[$_] = undef;
+  }
+
+  return %exsubs;
+}
+
+##
 ## _get_fill()
 ##
 ## Returns an appropriate subroutine to process the given defaults.
@@ -76,51 +126,74 @@ sub _is_method {
 sub _get_fill {
   my ($defaults) = @_;
 
-  ( ( ref $defaults eq 'ARRAY' ) || ( ref $defaults eq 'HASH' ) ) or $defaults = [$defaults];
+  unless ( ( ref $defaults eq 'ARRAY' ) || ( ref $defaults eq 'HASH' ) ) {
+    $defaults = [$defaults];
+  }
 
   if (ref $defaults eq 'ARRAY') {
-    my %exsubs = ();
-    for ( $[ .. $#$defaults ) {
-      (UNIVERSAL::isa( $defaults->[$_], EXSUB_CLASS )) or next;
-      $exsubs{$_} = $defaults->[$_];
-      $defaults->[$_] = undef;
-    }
-    if (%exsubs) {
-      return sub {
-	my @filled = _fill_arr($defaults, @_);
-	my @processed = @filled;
-	foreach ($[ .. $#processed) {
-	  (! defined($processed[$_]) && defined $exsubs{$_}) or next;
-	  $processed[$_] = $exsubs{$_}->(@filled);
-	}
-	return @processed;
-      };
-    }
-    else {
-      return sub { _fill_arr($defaults, @_) };
-    }
+    return _fill_array_sub($defaults);
   }
   elsif(ref $defaults eq 'HASH') {
-    my %exsubs = ();
-    while ( my ($key, $value) = each %$defaults ) {
-      (UNIVERSAL::isa( $value, EXSUB_CLASS ) ) or next;
-      $exsubs{$key} = $value;
-      $defaults->{$key} = undef;
-    }
-    if (%exsubs) {
-      return sub {
-	my @filled = _fill_hash($defaults, @_);
-	my %processed = @filled;
-	while (my ($key, $value) = each %processed) {
-	  (! defined($processed{$key})) && defined $exsubs{$key} or next;
-	  $processed{$key} = $exsubs{$key}->(@filled);
-	}
-	return %processed;
+    return _fill_hash_sub($defaults);
+  }
+}
+
+##
+## _fill_array_sub()
+##
+## Arguments:
+##   DEFAULTS: arrayref
+##
+## Returns the appropriate preprocessor to fill an array
+## with defaults.
+##
+sub _fill_array_sub {
+  my ($defaults) = @_;
+
+  if ( my %exsubs = _find_exsubs_in_array($defaults) ) {
+    return sub {
+      my @filled = _fill_arr($defaults, @_);
+      my @processed = @filled;
+      foreach ($[ .. $#processed) {
+	(! defined($processed[$_]) && defined $exsubs{$_}) or next;
+	$processed[$_] = $exsubs{$_}->(@filled);
       }
-    }
-    else {
-      return sub { _fill_hash($defaults, @_) };
-    }
+      return @processed;
+    };
+  }
+  else {
+    return sub { _fill_arr($defaults, @_) };
+  }
+}
+
+##
+## _fill_hash_sub()
+##
+## Returns the appropriate preprocessor to fill a hash
+## with defaults.
+##
+sub _fill_hash_sub {
+  my ($defaults) = @_;
+
+  my %exsubs = ();
+  while ( my ($key, $value) = each %$defaults ) {
+    (UNIVERSAL::isa( $value, EXSUB_CLASS ) ) or next;
+    $exsubs{$key} = $value;
+    $defaults->{$key} = undef;
+  }
+  if (%exsubs) {
+    return sub {
+      my @filled = _fill_hash($defaults, @_);
+      my %processed = @filled;
+      while (my ($key, $value) = each %processed) {
+	(! defined($processed{$key})) && defined $exsubs{$key} or next;
+	$processed{$key} = $exsubs{$key}->(@filled);
+      }
+      return %processed;
+    };
+  }
+  else {
+    return sub { _fill_hash($defaults, @_) };
   }
 }
 
