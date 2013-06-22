@@ -13,7 +13,7 @@ use strict;
 use warnings;
 no warnings 'redefine';
 use attributes;
-use Attribute::Handlers;
+use Attribute::Handlers 0.79;
 
 use base qw(Attribute::Handlers Exporter);
 
