@@ -8,11 +8,12 @@ package Attribute::Default;
 #### See perldoc for details.
 ####
 
-use 5.006;
+use 5.10;
 use strict;
 use warnings;
 no warnings 'redefine';
 use attributes;
+use Attribute::Handlers '0.79';
 
 use base qw(Attribute::Handlers Exporter);
 
@@ -288,7 +289,13 @@ sub _get_sub {
 
 
 sub Default : ATTR(CODE) {
-  my ($glob, $attr, $defaults, $orig) = _get_args(@_);
+  my ($glob, $attr, $defaults_arg, $orig) = _get_args(@_);
+  
+  my $defaults = $defaults_arg;
+  
+  if ( defined $defaults && (ref $defaults eq 'ARRAY') && ( scalar @{ $defaults } == 1 ) ) {
+  	$defaults = $defaults_arg->[0];
+  }
 
   *$glob = _get_sub($defaults, $orig);
 
