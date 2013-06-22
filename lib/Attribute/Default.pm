@@ -506,6 +506,10 @@ subroutines.
 
 This module attempts to provide that mechanism.
 
+B<THIS MODULE IS DEPRECATED.> I'll be providing basic bug fixes, but
+there are superior modules out there-- I'd suggest L<Method::Signatures>
+or L<Params::Validate>.
+
 =head2 SIMPLE DEFAULTS
 
 If you would like to have a subroutine that takes three parameters,
