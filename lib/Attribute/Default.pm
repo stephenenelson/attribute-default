@@ -20,8 +20,6 @@ use base qw(Attribute::Handlers Exporter);
 use Carp;
 use Symbol;
 
-our $VERSION = '1.33';
-
 our @EXPORT_OK = qw(exsub);
 
 use constant EXSUB_CLASS => ( __PACKAGE__ . '::ExSub' );

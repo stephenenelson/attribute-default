@@ -1,8 +1,0 @@
-Changes
-lib/Attribute/Default.pm
-Makefile.PL
-MANIFEST
-README
-t/basic.t
-t/exsub.t
-t/exsub_defaults.t
