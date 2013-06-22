@@ -1,5 +1,5 @@
 Changes
-Default.pm
+lib/Attribute/Default.pm
 Makefile.PL
 MANIFEST
 README

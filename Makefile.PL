@@ -16,11 +16,11 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
     'NAME'		=> 'Attribute::Default',
-    'VERSION_FROM'	=> 'Default.pm', # finds $VERSION
-    'PREREQ_PM'		=> { 'Attribute::Handlers' => 0,
+    'VERSION_FROM'	=> 'lib/Attribute/Default.pm', # finds $VERSION
+    'PREREQ_PM'		=> { 'Attribute::Handlers' => 0.79,
 			     'Test::More' => 0
 			   }, 
     ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
-      (ABSTRACT_FROM => 'Default.pm', # retrieve abstract from module
-       AUTHOR     => 'Stephen Nelson <senelson@tdl.com>') : ()),
+      (ABSTRACT_FROM => 'lib/Attribute/Default.pm', # retrieve abstract from module
+       AUTHOR     => 'Stephen Nelson <stephenenelson@mac.com>') : ()),
 );
