@@ -1,5 +1,10 @@
 Revision history for Perl extension Attribute::Default.
 
+1.33  Fri Jun 21 21:51:03 PDT 2013
+	- Upgraded for versions of perl after 5.10
+	- Moved to dzil
+	- Deprecated
+
 1.14  Mon May 13 18:22:15 PDT 2002
 	- Added check for ':method' to Defaults().
 
