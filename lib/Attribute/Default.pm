@@ -19,7 +19,7 @@ use base qw(Attribute::Handlers Exporter);
 use Carp;
 use Symbol;
 
-our $VERSION = do { my @r = (q$Revision$ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+our $VERSION = '1.33';
 
 our @EXPORT_OK = qw(exsub);
 
