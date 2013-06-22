@@ -8,12 +8,12 @@ package Attribute::Default;
 #### See perldoc for details.
 ####
 
-use 5.10;
+use 5.0010;
 use strict;
 use warnings;
 no warnings 'redefine';
 use attributes;
-use Attribute::Handlers '0.79';
+use Attribute::Handlers;
 
 use base qw(Attribute::Handlers Exporter);
 
