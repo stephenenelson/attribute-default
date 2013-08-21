@@ -5,3 +5,5 @@ Makefile
 Makefile.old
 pm_to_blib
 Attribute-Default-*
+.DS_Store
+
