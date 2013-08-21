@@ -704,6 +704,13 @@ Christine Doyle, Randy Ray, Jeff Anderson, and my brother and sister monks at ww
 
 L<Attribute::Handlers>, L<Sub::NamedParams>, L<attributes>.
 
+=head1 LICENSE
+
+This software is copyright (c) 2002-2013 by Stephen Nelson.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
 =cut
 
 
