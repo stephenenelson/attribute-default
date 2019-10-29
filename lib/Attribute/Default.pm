@@ -8,7 +8,7 @@ package Attribute::Default;
 #### See perldoc for details.
 ####
 
-use 5.0010;
+use 5.010;
 use strict;
 use warnings;
 no warnings 'redefine';
